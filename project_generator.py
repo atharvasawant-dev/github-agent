@@ -1,851 +1,726 @@
 #!/usr/bin/env python3
-"""
-Project Generator Module - Fixed Version
-Creates professional repositories with production-grade code.
+"""Project Generator Module (Hiring-Optimized Mode).
+
+Creates recruiter-grade, production-level repositories for Python Backend / Full Stack roles.
+
+Rules:
+- Create at most 1 repo per execution.
+- Only create when total repositories < 12.
+- Rotate project types: Backend API -> Automation CLI -> Full Stack -> repeat.
+- Do not overwrite existing repositories.
 """
 
-import os
+from __future__ import annotations
+
+import json
 import logging
-from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Tuple
+
 from github import Github, GithubException
 
 
+_COMMIT_MESSAGE = "Initialize production-grade engineering project"
+_STATE_FILE = Path(__file__).with_name(".project_generator_state.json")
+
+
+class ProjectGenerationError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class GenerationDecision:
+    should_create: bool
+    reason: str
+
+
 class ProjectGenerator:
-    """Generates professional projects for GitHub repositories."""
-    
+    """Hiring-optimized project generator that uses PyGithub to create and populate repositories."""
+
     def __init__(self, github_client: Github):
         self.github = github_client
         self.user = None
         self._setup_logging()
-    
+
     def _setup_logging(self) -> None:
-        """Set up logging for the generator."""
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
         self.logger = logging.getLogger(__name__)
-    
+
     def authenticate(self) -> bool:
-        """Authenticate with GitHub."""
         try:
             self.user = self.github.get_user()
-            self.logger.info(f"Authenticated as: {self.user.login}")
+            self.logger.info("Authenticated as: %s", self.user.login)
             return True
         except GithubException as e:
-            self.logger.error(f"Authentication failed: {e}")
+            self.logger.error("Authentication failed: %s", e)
             return False
-    
-    def should_create_new_repo(self) -> bool:
-        """Check if new repositories should be created."""
+
+    def _list_repo_names(self) -> List[str]:
+        if not self.user:
+            raise ProjectGenerationError("Not authenticated")
+        return [r.name for r in self.user.get_repos(type="owner")]
+
+    def should_create_new_repo(self) -> GenerationDecision:
+        if not self.user:
+            return GenerationDecision(False, "Not authenticated")
         try:
-            if not self.user:
-                return False
-            
-            repos = list(self.user.get_repos(type='owner'))
-            return len(repos) < 20
+            repos = list(self.user.get_repos(type="owner"))
+            if len(repos) >= 12:
+                return GenerationDecision(False, f"Repo count is {len(repos)} (>= 12)")
+            return GenerationDecision(True, f"Repo count is {len(repos)} (< 12)")
         except GithubException as e:
-            self.logger.error(f"Failed to check repository count: {e}")
-            return False
-    
-    def generate_automation_tool(self, repo_name: str) -> Dict[str, Any]:
-        """Generate a professional automation tool project."""
-        self.logger.info(f"Creating production project: {repo_name}")
-        
-        project_files = {
-            'src/__init__.py': '''"""Automation Tool Package."""
+            return GenerationDecision(False, f"Failed to list repositories: {e}")
 
-__version__ = "0.1.0"
-__author__ = "Professional Developer"
-''',
-            'src/automation_core.py': '''"""
-Core automation functionality for professional workflow management.
-"""
-
-import logging
-import asyncio
-from typing import Dict, List, Any, Optional, Callable
-from dataclasses import dataclass
-from datetime import datetime
-import json
-import os
-
-
-@dataclass
-class TaskResult:
-    """Result of an automation task."""
-    task_id: str
-    status: str
-    message: str
-    timestamp: datetime
-    data: Optional[Dict[str, Any]] = None
-
-
-class AutomationEngine:
-    """Professional automation engine for workflow management."""
-    
-    def __init__(self, config_path: Optional[str] = None):
-        self.config = self._load_config(config_path)
-        self.tasks: Dict[str, Callable] = {}
-        self.results: List[TaskResult] = []
-        self._setup_logging()
-    
-    def _setup_logging(self) -> None:
-        """Set up professional logging."""
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler('automation.log'),
-                logging.StreamHandler()
-            ]
-        )
-        self.logger = logging.getLogger(__name__)
-    
-    def _load_config(self, config_path: Optional[str]) -> Dict[str, Any]:
-        """Load configuration from file."""
-        default_config = {
-            'max_concurrent_tasks': 5,
-            'retry_attempts': 3,
-            'timeout': 300,
-            'log_level': 'INFO'
+    def generate_new_projects(self, count: int = 1) -> Dict[str, Any]:
+        """Create at most 1 repository in hiring-optimized mode."""
+        result: Dict[str, Any] = {
+            "total_requested": count,
+            "created": 0,
+            "skipped": 0,
+            "details": [],
         }
-        
-        if config_path and os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    user_config = json.load(f)
-                default_config.update(user_config)
-            except Exception as e:
-                self.logger.warning(f"Failed to load config: {e}")
-        
-        return default_config
-    
-    def register_task(self, name: str, task_func: Callable) -> None:
-        """Register a new automation task."""
-        self.tasks[name] = task_func
-        self.logger.info(f"Registered task: {name}")
-    
-    async def execute_task(self, task_name: str, **kwargs) -> TaskResult:
-        """Execute a specific task."""
-        if task_name not in self.tasks:
-            return TaskResult(
-                task_id=f"{task_name}_{datetime.now().timestamp()}",
-                status="failed",
-                message=f"Task '{task_name}' not found",
-                timestamp=datetime.now()
-            )
-        
+
+        if not self.user and not self.authenticate():
+            result["details"].append({"success": False, "error": "Authentication failed"})
+            return result
+
+        decision = self.should_create_new_repo()
+        if not decision.should_create:
+            result["skipped"] = 1
+            result["details"].append({"success": True, "skipped": True, "reason": decision.reason})
+            return result
+
+        created = self._create_one_project()
+        result["details"].append(created)
+        result["created"] = 1 if created.get("success") else 0
+        return result
+
+    def _create_one_project(self) -> Dict[str, Any]:
+        if not self.user:
+            raise ProjectGenerationError("Not authenticated")
+
+        existing_names = set(self._list_repo_names())
+        next_kind = self._next_project_kind(existing_names)
+        repo_name, description = self._choose_repo_name_and_description(next_kind, existing_names)
+
+        if repo_name in existing_names:
+            return {"success": True, "skipped": True, "reason": f"Repo {repo_name} already exists"}
+
         try:
-            task_func = self.tasks[task_name]
-            result = await task_func(**kwargs)
-            
-            return TaskResult(
-                task_id=f"{task_name}_{datetime.now().timestamp()}",
-                status="success",
-                message="Task completed successfully",
-                timestamp=datetime.now(),
-                data=result
-            )
-        except Exception as e:
-            self.logger.error(f"Task {task_name} failed: {e}")
-            return TaskResult(
-                task_id=f"{task_name}_{datetime.now().timestamp()}",
-                status="failed",
-                message=str(e),
-                timestamp=datetime.now()
-            )
-    
-    async def run_workflow(self, workflow: List[Dict[str, Any]]) -> List[TaskResult]:
-        """Run a complete workflow with multiple tasks."""
-        results = []
-        
-        for step in workflow:
-            task_name = step['task']
-            task_params = step.get('params', {})
-            
-            result = await self.execute_task(task_name, **task_params)
-            results.append(result)
-            
-            if result.status == "failed" and step.get('required', True):
-                self.logger.error(f"Required task {task_name} failed, stopping workflow")
-                break
-        
-        return results
-    
-    def get_results(self, status_filter: Optional[str] = None) -> List[TaskResult]:
-        """Get task results with optional status filter."""
-        if status_filter:
-            return [r for r in self.results if r.status == status_filter]
-        return self.results.copy()
-    
-    def clear_results(self) -> None:
-        """Clear all task results."""
-        self.results.clear()
-        self.logger.info("Task results cleared")
+            self.user.get_repo(repo_name)
+            return {"success": True, "skipped": True, "reason": f"Repo {repo_name} already exists"}
+        except GithubException as e:
+            if getattr(e, "status", None) != 404:
+                return {"success": False, "error": f"Failed checking repo existence: {e}"}
+
+        files = self._build_project_files(next_kind, repo_name)
+        if not files:
+            return {"success": False, "error": "No files generated"}
 
-
-# Example task functions
-async def backup_files(source: str, destination: str) -> Dict[str, Any]:
-    """Example backup task."""
-    import shutil
-    
-    try:
-        if os.path.exists(destination):
-            shutil.rmtree(destination)
-        shutil.copytree(source, destination)
-        
-        return {
-            'files_backed_up': len(os.listdir(source)),
-            'destination': destination
-        }
-    except Exception as e:
-        raise Exception(f"Backup failed: {e}")
-
-
-async def cleanup_temp_files(directory: str) -> Dict[str, Any]:
-    """Example cleanup task."""
-    import tempfile
-    
-    try:
-        cleaned_count = 0
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file.endswith('.tmp') or file.endswith('.temp'):
-                    os.remove(os.path.join(root, file))
-                    cleaned_count += 1
-        
-        return {
-            'files_cleaned': cleaned_count,
-            'directory': directory
-        }
-    except Exception as e:
-        raise Exception(f"Cleanup failed: {e}")
-''',
-            'src/cli.py': '''"""
-Command-line interface for the automation tool.
-"""
-
-import click
-import asyncio
-import json
-from typing import Optional
-from .automation_core import AutomationEngine
-
-
-@click.group()
-@click.option('--config', '-c', help='Configuration file path')
-@click.pass_context
-def cli(ctx, config):
-    """Professional Automation Tool CLI."""
-    ctx.ensure_object(dict)
-    ctx.obj['engine'] = AutomationEngine(config)
-
-
-@cli.command()
-@click.argument('workflow_file', type=click.Path(exists=True))
-@click.pass_context
-def run(ctx, workflow_file):
-    """Run automation workflow from file."""
-    engine = ctx.obj['engine']
-    
-    try:
-        with open(workflow_file, 'r') as f:
-            workflow = json.load(f)
-        
-        results = asyncio.run(engine.run_workflow(workflow))
-        
-        for result in results:
-            status_icon = "✅" if result.status == "success" else "❌"
-            click.echo(f"{status_icon} {result.task_id}: {result.message}")
-    
-    except Exception as e:
-        click.echo(f"Error running workflow: {e}", err=True)
-
-
-@cli.command()
-@click.pass_context
-def status(ctx):
-    """Show task results status."""
-    engine = ctx.obj['engine']
-    
-    results = engine.get_results()
-    
-    if not results:
-        click.echo("No tasks executed yet.")
-        return
-    
-    success_count = len([r for r in results if r.status == "success"])
-    failed_count = len([r for r in results if r.status == "failed"])
-    
-    click.echo(f"Tasks: {len(results)} | ✅ Success: {success_count} | ❌ Failed: {failed_count}")
-
-
-@cli.command()
-@click.pass_context
-def clear(ctx):
-    """Clear all task results."""
-    engine = ctx.obj['engine']
-    engine.clear_results()
-    click.echo("Task results cleared.")
-
-
-if __name__ == '__main__':
-    cli()
-''',
-            'src/__main__.py': '''"""Main entry point for the automation tool."""
-
-from .cli import cli
-
-if __name__ == '__main__':
-    cli()
-''',
-            'tests/__init__.py': '''"""Test package."""''',
-            'tests/test_automation_core.py': '''"""Tests for automation core functionality."""
-
-import pytest
-import asyncio
-from datetime import datetime
-from src.automation_core import AutomationEngine, TaskResult
-
-
-class TestAutomationEngine:
-    """Test cases for AutomationEngine."""
-    
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.engine = AutomationEngine()
-    
-    def test_engine_initialization(self):
-        """Test engine initialization."""
-        assert self.engine.config is not None
-        assert 'max_concurrent_tasks' in self.engine.config
-        assert len(self.engine.tasks) == 0
-    
-    def test_task_registration(self):
-        """Test task registration."""
-        def dummy_task():
-            return {"status": "ok"}
-        
-        self.engine.register_task("dummy", dummy_task)
-        assert "dummy" in self.engine.tasks
-    
-    @pytest.mark.asyncio
-    async def test_task_execution_success(self):
-        """Test successful task execution."""
-        def success_task():
-            return {"result": "success"}
-        
-        self.engine.register_task("success", success_task)
-        result = await self.engine.execute_task("success")
-        
-        assert result.status == "success"
-        assert result.data["result"] == "success"
-    
-    @pytest.mark.asyncio
-    async def test_task_execution_failure(self):
-        """Test failed task execution."""
-        def failing_task():
-            raise Exception("Test error")
-        
-        self.engine.register_task("failing", failing_task)
-        result = await self.engine.execute_task("failing")
-        
-        assert result.status == "failed"
-        assert "Test error" in result.message
-    
-    @pytest.mark.asyncio
-    async def test_workflow_execution(self):
-        """Test workflow execution."""
-        def task1():
-            return {"step": 1}
-        
-        def task2():
-            return {"step": 2}
-        
-        self.engine.register_task("task1", task1)
-        self.engine.register_task("task2", task2)
-        
-        workflow = [
-            {"task": "task1", "required": True},
-            {"task": "task2", "required": True}
-        ]
-        
-        results = await self.engine.run_workflow(workflow)
-        
-        assert len(results) == 2
-        assert all(r.status == "success" for r in results)
-
-
-if __name__ == '__main__':
-    pytest.main([__file__])
-''',
-            'examples/workflow.json': '''{
-  "name": "Example Automation Workflow",
-  "description": "Sample workflow demonstrating automation capabilities",
-  "steps": [
-    {
-      "task": "backup_files",
-      "params": {
-        "source": "./data",
-        "destination": "./backup"
-      },
-      "required": true
-    },
-    {
-      "task": "cleanup_temp_files",
-      "params": {
-        "directory": "./temp"
-      },
-      "required": false
-    }
-  ]
-}''',
-            'requirements.txt': '''# Core dependencies
-click>=8.0.0
-asyncio-throttle>=1.0.2
-pydantic>=1.10.0
-
-# Development dependencies
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
-pytest-cov>=4.0.0
-black>=22.0.0
-flake8>=5.0.0
-mypy>=0.991
-
-# Optional dependencies
-python-dotenv>=0.19.0
-''',
-            'setup.py': '''from setuptools import setup, find_packages
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
-
-setup(
-    name="automation-toolkit",
-    version="0.1.0",
-    author="Professional Developer",
-    author_email="dev@example.com",
-    description="Professional automation toolkit for workflow management",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/username/automation-toolkit",
-    packages=find_packages(),
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-        "Topic :: System :: Systems Administration",
-    ],
-    python_requires=">=3.8",
-    install_requires=requirements,
-    entry_points={
-        "console_scripts": [
-            "automation-toolkit=src.cli:cli",
-        ],
-    },
-)
-''',
-            '.gitignore': '''# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Project specific
-automation.log
-backup/
-temp/
-''',
-            'README.md': '''# Professional Automation Toolkit
-
-A production-grade automation framework for managing complex workflows and tasks with professional reliability and monitoring.
-
-## 🚀 Features
-
-- **Asynchronous Task Execution**: High-performance concurrent task processing
-- **Workflow Management**: Define and execute complex multi-step workflows
-- **Robust Error Handling**: Comprehensive error recovery and retry mechanisms
-- **Professional Logging**: Structured logging with file and console output
-- **CLI Interface**: Full-featured command-line interface
-- **Configuration Management**: Flexible JSON-based configuration system
-- **Task Results Tracking**: Complete audit trail of all operations
-
-## 🏗️ Architecture
-
-The toolkit is built with a modular architecture:
-
-```
-automation-toolkit/
-├── src/
-│   ├── __init__.py           # Package initialization
-│   ├── automation_core.py     # Core automation engine
-│   ├── cli.py               # Command-line interface
-│   └── __main__.py          # Entry point
-├── tests/
-│   ├── __init__.py
-│   └── test_automation_core.py
-├── examples/
-│   └── workflow.json         # Example workflow
-├── requirements.txt          # Dependencies
-├── setup.py                # Package configuration
-└── README.md              # This file
-```
-
-## 📦 Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/username/automation-toolkit.git
-cd automation-toolkit
-
-# Install in development mode
-pip install -e .
-
-# Or install from requirements
-pip install -r requirements.txt
-```
-
-## 🛠️ Usage
-
-### Command Line Interface
-
-```bash
-# Run a workflow from file
-automation-toolkit run workflow.json
-
-# Check task status
-automation-toolkit status
-
-# Clear task results
-automation-toolkit clear
-```
-
-### Python API
-
-```python
-import asyncio
-from src.automation_core import AutomationEngine
-
-# Initialize the engine
-engine = AutomationEngine()
-
-# Register a custom task
-async def my_task():
-    return {"result": "success"}
-
-engine.register_task("my_task", my_task)
-
-# Execute the task
-result = await engine.execute_task("my_task")
-print(f"Task status: {result.status}")
-```
-
-### Workflow Definition
-
-Create a JSON workflow file:
-
-```json
-{
-  "name": "My Workflow",
-  "steps": [
-    {
-      "task": "backup_files",
-      "params": {
-        "source": "./data",
-        "destination": "./backup"
-      },
-      "required": true
-    }
-  ]
-}
-```
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-python -m pytest
-
-# Run with coverage
-python -m pytest --cov=src --cov-report=html
-
-# Run specific test file
-python -m pytest tests/test_automation_core.py
-```
-
-## 🔧 Configuration
-
-Create a configuration file to customize behavior:
-
-```json
-{
-  "max_concurrent_tasks": 10,
-  "retry_attempts": 3,
-  "timeout": 300,
-  "log_level": "INFO"
-}
-```
-
-## 📈 Performance
-
-- **Concurrent Processing**: Handles multiple tasks simultaneously
-- **Memory Efficient**: Optimized for large-scale automation
-- **Fast Execution**: Minimal overhead for task operations
-- **Scalable Architecture**: Suitable for enterprise workflows
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔮 Future Improvements
-
-- [ ] Web dashboard for workflow management
-- [ ] Docker containerization support
-- [ ] Kubernetes integration
-- [ ] Advanced scheduling capabilities
-- [ ] Plugin system for custom task types
-- [ ] Real-time monitoring dashboard
-
-## 📞 Support
-
-For support and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the examples directory
-
----
-
-*Built with ❤️ for professional automation workflows*
-''',
-            '.github/workflows/ci.yml': '''name: CI/CD Pipeline
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8, 3.9, '3.10', '3.11']
-
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -e .
-    
-    - name: Lint with flake8
-      run: |
-        pip install flake8
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
-    
-    - name: Run tests
-      run: |
-        python -m pytest tests/ -v --cov=src --cov-report=xml
-    
-    - name: Check code formatting
-      run: |
-        pip install black
-        black --check .
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-'''
-        }
-        
-        return project_files
-    
-    def create_repository(self, repo_name: str, description: str = None) -> Dict[str, Any]:
-        """Create a new repository with professional project."""
-        result = {
-            'success': False,
-            'repo_name': repo_name,
-            'repo_url': None,
-            'errors': []
-        }
-        
         try:
-            if not self.user:
-                if not self.authenticate():
-                    result['errors'].append("Authentication failed")
-                    return result
-            
-            # Create repository
-            repo_description = description or f"Professional {repo_name.replace('-', ' ').title()} - Production-grade tool for developers"
-            
             repo = self.user.create_repo(
                 name=repo_name,
-                description=repo_description,
+                description=description,
                 private=False,
-                has_wiki=True,
                 has_issues=True,
-                has_projects=True,
-                auto_init=False
+                has_projects=False,
+                has_wiki=False,
+                auto_init=False,
             )
-            
-            self.logger.info(f"Created repository: {repo_name}")
-            
-            # Generate and upload project files
-            project_files = self.generate_automation_tool(repo_name)
-            
-            for file_path, content in project_files.items():
-                try:
-                    repo.create_file(
-                        path=file_path,
-                        message=f"Add {file_path}",
-                        content=content,
-                        branch=repo.default_branch
-                    )
-                except GithubException as e:
-                    self.logger.warning(f"Failed to create {file_path}: {e}")
-            
-            result['success'] = True
-            result['repo_url'] = repo.html_url
-            self.logger.info(f"Successfully created and populated {repo_name}")
-            
+            self.logger.info("Created repository: %s", repo_name)
+
+            self._upload_files(repo, files)
+            self._write_rotation_state(next_kind)
+
+            return {
+                "success": True,
+                "repo_name": repo_name,
+                "repo_url": repo.html_url,
+                "project_type": next_kind,
+            }
         except GithubException as e:
-            error_msg = f"Failed to create repository {repo_name}: {e}"
-            self.logger.error(error_msg)
-            result['errors'].append(error_msg)
+            return {"success": False, "repo_name": repo_name, "error": f"GitHub API error: {e}"}
         except Exception as e:
-            error_msg = f"Unexpected error creating {repo_name}: {e}"
-            self.logger.error(error_msg)
-            result['errors'].append(error_msg)
-        
-        return result
-    
-    def generate_new_projects(self, count: int = 1) -> Dict[str, Any]:
-        """Generate multiple new professional projects."""
-        project_templates = [
-            ("automation-toolkit", "Professional automation framework for workflow management"),
-            ("dev-monitor", "System monitoring tool for developers"),
-            ("api-builder", "RESTful API framework builder"),
-            ("cli-utility", "Command-line utility toolkit"),
-            ("config-manager", "Professional configuration management system"),
-            ("log-analyzer", "Advanced log analysis and monitoring tool"),
-            ("task-scheduler", "Professional task scheduling system"),
-            ("data-processor", "Data processing and transformation toolkit"),
-            ("file-manager", "Advanced file management utility"),
-            ("network-monitor", "Network monitoring and diagnostic tool")
-        ]
-        
-        results = {
-            'total': count,
-            'successful': 0,
-            'failed': 0,
-            'details': []
+            return {"success": False, "repo_name": repo_name, "error": f"Unexpected error: {e}"}
+
+    def _upload_files(self, repo: Any, files: Mapping[str, str]) -> None:
+        for path, content in files.items():
+            try:
+                repo.create_file(path=path, message=_COMMIT_MESSAGE, content=content, branch=repo.default_branch)
+            except GithubException as e:
+                if getattr(e, "status", None) == 422:
+                    self.logger.warning("Skipping existing path %s (422)", path)
+                    continue
+                self.logger.error("Failed to upload %s: %s", path, e)
+                raise
+
+    def _load_rotation_state(self) -> Dict[str, Any]:
+        try:
+            if not _STATE_FILE.exists():
+                return {"last": None}
+            return json.loads(_STATE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {"last": None}
+
+    def _write_rotation_state(self, last_kind: str) -> None:
+        payload = {"last": last_kind, "updated_at": datetime.utcnow().isoformat()}
+        _STATE_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def _next_project_kind(self, existing_names: set[str]) -> str:
+        """Rotation: backend_api -> automation_cli -> fullstack_app -> repeat.
+
+        Avoid generating the same type repeatedly when possible by checking prefixes.
+        """
+
+        state = self._load_rotation_state()
+        last = state.get("last")
+        rotation = ["backend_api", "automation_cli", "fullstack_app"]
+
+        if last in rotation:
+            idx = (rotation.index(last) + 1) % len(rotation)
+        else:
+            idx = 0
+
+        for _ in range(len(rotation)):
+            kind = rotation[idx]
+            prefix = self._kind_prefix(kind)
+            # If we already have a repo with this prefix and there are other options, rotate away.
+            if any(name.startswith(prefix) for name in existing_names) and len(existing_names) > 0:
+                idx = (idx + 1) % len(rotation)
+                continue
+            return kind
+
+        return rotation[idx]
+
+    def _kind_prefix(self, kind: str) -> str:
+        if kind == "backend_api":
+            return "production-fastapi-"
+        if kind == "automation_cli":
+            return "engineering-cli-"
+        if kind == "fullstack_app":
+            return "fullstack-fastapi-"
+        return "engineering-project-"
+
+    def _choose_repo_name_and_description(self, kind: str, existing: set[str]) -> Tuple[str, str]:
+        base = self._kind_prefix(kind)
+        candidates = {
+            "backend_api": ("service", "Production-grade FastAPI service with modular architecture, validation, and testing"),
+            "automation_cli": (
+                "log-auditor",
+                "Engineering CLI tool for log auditing, anomaly spotting, and reporting with structured output",
+            ),
+            "fullstack_app": (
+                "dashboard",
+                "Full-stack FastAPI app with server-rendered UI and JSON API endpoints for a developer dashboard",
+            ),
         }
-        
-        for i in range(min(count, len(project_templates))):
-            repo_name, description = project_templates[i]
-            result = self.create_repository(repo_name, description)
-            results['details'].append(result)
-            
-            if result['success']:
-                results['successful'] += 1
-            else:
-                results['failed'] += 1
-        
-        return results
+
+        suffix, desc = candidates.get(kind, ("project", "Production-grade engineering project"))
+        name = f"{base}{suffix}"
+        if name not in existing:
+            return name, desc
+        for i in range(2, 50):
+            alt = f"{name}-{i}"
+            if alt not in existing:
+                return alt, desc
+        raise ProjectGenerationError("Unable to find available repository name")
+
+    def _build_project_files(self, kind: str, repo_name: str) -> Dict[str, str]:
+        if kind == "backend_api":
+            return self._backend_api_files(repo_name)
+        if kind == "automation_cli":
+            return self._automation_cli_files(repo_name)
+        if kind == "fullstack_app":
+            return self._fullstack_files(repo_name)
+        raise ProjectGenerationError(f"Unknown project kind: {kind}")
+
+    def _common_gitignore(self) -> str:
+        return (
+            "__pycache__/\n*.py[cod]\n*$py.class\n\n"
+            ".venv/\nvenv/\n.env\n.env.*\n\n"
+            ".pytest_cache/\n.coverage\nhtmlcov/\n\n"
+            "dist/\nbuild/\n*.egg-info/\n\n"
+            "*.log\n\n"
+            ".DS_Store\nThumbs.db\n"
+        )
+
+    def _common_ci_workflow(self) -> str:
+        return (
+            "name: CI\n\n"
+            "on:\n  push:\n    branches: [ main, master ]\n  pull_request:\n    branches: [ main, master ]\n\n"
+            "jobs:\n  test:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        python-version: ['3.10', '3.11']\n\n"
+            "    steps:\n      - uses: actions/checkout@v4\n"
+            "      - name: Set up Python ${{ matrix.python-version }}\n        uses: actions/setup-python@v5\n        with:\n          python-version: ${{ matrix.python-version }}\n"
+            "      - name: Install dependencies\n        run: |\n          python -m pip install --upgrade pip\n          pip install -r requirements.txt\n"
+            "      - name: Lint\n        run: |\n          python -m pip install ruff\n          ruff check .\n"
+            "      - name: Run tests\n        run: |\n          python -m pip install pytest\n          pytest -q\n"
+        )
+
+    def _backend_api_files(self, repo_name: str) -> Dict[str, str]:
+        requirements = "fastapi==0.115.0\nuvicorn[standard]==0.30.6\npydantic==2.8.2\npytest==8.3.2\nhttpx==0.27.2\nruff==0.6.3\n"
+        readme = f"""# Production FastAPI Service\n\nA production-grade FastAPI service designed to demonstrate backend engineering fundamentals recruiters look for: modular architecture, request validation, structured logging, error handling, and tests.\n\n## Architecture\n\n- `src/main.py`: application entry point\n- `src/routes/`: API route modules\n- `src/services/`: business logic\n- `src/models/`: Pydantic domain models\n\n## Features\n\n- Health and readiness endpoints\n- CRUD-style API for work items\n- Structured logging\n- Input validation and consistent error responses\n- Pytest test suite\n\n## Installation\n\n```bash\npython -m venv .venv\nsource .venv/bin/activate\npip install -r requirements.txt\n```\n\n## Usage\n\n```bash\nuvicorn src.main:app --reload\n# GET http://127.0.0.1:8000/health\n```\n\n## Project Structure\n\n```\n{repo_name}/\n  src/\n    main.py\n    routes/\n    services/\n    models/\n  tests/\n  .github/workflows/ci.yml\n  README.md\n  requirements.txt\n  .gitignore\n```\n"""
+
+        return {
+            "src/main.py": self._fastapi_main_py(app_title="Work Items API"),
+            "src/routes/__init__.py": "",
+            "src/routes/health.py": self._fastapi_health_routes(),
+            "src/routes/work_items.py": self._fastapi_work_items_routes(),
+            "src/services/__init__.py": "",
+            "src/services/work_items_service.py": self._work_items_service_py(),
+            "src/models/__init__.py": "",
+            "src/models/work_item.py": self._work_item_model_py(),
+            "tests/test_health.py": self._test_health_py(),
+            "tests/test_work_items.py": self._test_work_items_py(),
+            "README.md": readme,
+            "requirements.txt": requirements,
+            ".gitignore": self._common_gitignore(),
+            ".github/workflows/ci.yml": self._common_ci_workflow(),
+        }
+
+    def _automation_cli_files(self, repo_name: str) -> Dict[str, str]:
+        requirements = "pytest==8.3.2\nruff==0.6.3\n"
+        readme = f"""# Engineering Log Auditor CLI\n\nA production-grade CLI tool for software engineers to audit log files, detect anomalies (spikes, error bursts), and generate machine-readable reports for incident reviews.\n\n## Architecture\n\n- `src/main.py`: CLI entry point\n- `src/services/`: parsing and analysis\n- `src/models/`: typed report structures\n\n## Features\n\n- Parses JSONL or plain text logs\n- Detects error-rate spikes\n- Produces summary report in JSON\n- Designed for automation and CI usage\n\n## Installation\n\n```bash\npython -m venv .venv\nsource .venv/bin/activate\npip install -r requirements.txt\n```\n\n## Usage\n\n```bash\npython -m src.main analyze --path ./app.log --window 200 --threshold 0.15\n```\n\n## Project Structure\n\n```\n{repo_name}/\n  src/\n  tests/\n  .github/workflows/ci.yml\n  README.md\n  requirements.txt\n  .gitignore\n```\n"""
+
+        return {
+            "src/main.py": self._cli_main_py(),
+            "src/services/__init__.py": "",
+            "src/services/log_parser.py": self._log_parser_py(),
+            "src/services/analyzer.py": self._log_analyzer_py(),
+            "src/models/__init__.py": "",
+            "src/models/report.py": self._report_model_py(),
+            "tests/test_analyzer.py": self._test_analyzer_py(),
+            "README.md": readme,
+            "requirements.txt": requirements,
+            ".gitignore": self._common_gitignore(),
+            ".github/workflows/ci.yml": self._common_ci_workflow(),
+        }
+
+    def _fullstack_files(self, repo_name: str) -> Dict[str, str]:
+        requirements = (
+            "fastapi==0.115.0\nuvicorn[standard]==0.30.6\n"
+            "jinja2==3.1.4\npython-multipart==0.0.9\n"
+            "pytest==8.3.2\nhttpx==0.27.2\nruff==0.6.3\n"
+        )
+        readme = f"""# Full-Stack FastAPI Developer Dashboard\n\nA hiring-optimized full-stack project: FastAPI backend + server-rendered HTML UI + JSON API endpoints. It demonstrates API design, template rendering, structured logging, and test coverage.\n\n## Architecture\n\n- `src/main.py`: app entry point\n- `src/routes/`: API + UI routes\n- `src/services/`: business logic\n- `src/models/`: typed models\n- `templates/`: Jinja2 templates\n- `static/`: minimal CSS\n\n## Installation\n\n```bash\npython -m venv .venv\nsource .venv/bin/activate\npip install -r requirements.txt\n```\n\n## Usage\n\n```bash\nuvicorn src.main:app --reload\n# Open http://127.0.0.1:8000/\n```\n\n## Project Structure\n\n```\n{repo_name}/\n  src/\n  templates/\n  static/\n  tests/\n  .github/workflows/ci.yml\n  README.md\n  requirements.txt\n  .gitignore\n```\n"""
+
+        return {
+            "src/main.py": self._fastapi_main_py(app_title="Developer Dashboard"),
+            "src/routes/__init__.py": "",
+            "src/routes/health.py": self._fastapi_health_routes(),
+            "src/routes/dashboard.py": self._dashboard_routes_py(),
+            "src/routes/api_metrics.py": self._api_metrics_routes_py(),
+            "src/services/__init__.py": "",
+            "src/services/metrics_service.py": self._metrics_service_py(),
+            "src/models/__init__.py": "",
+            "src/models/metrics.py": self._metrics_model_py(),
+            "templates/index.html": self._template_index_html(),
+            "static/styles.css": self._static_css(),
+            "tests/test_ui.py": self._test_ui_py(),
+            "README.md": readme,
+            "requirements.txt": requirements,
+            ".gitignore": self._common_gitignore(),
+            ".github/workflows/ci.yml": self._common_ci_workflow(),
+        }
+
+    def _fastapi_main_py(self, app_title: str) -> str:
+        return (
+            '"""FastAPI application entry point."""\n\n'
+            "import logging\n"
+            "from fastapi import FastAPI\n"
+            "from src.routes.health import router as health_router\n"
+            "\n"
+            "logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')\n"
+            "logger = logging.getLogger(__name__)\n\n"
+            f"app = FastAPI(title={app_title!r}, version='1.0.0')\n\n"
+            "app.include_router(health_router)\n\n"
+            "try:\n"
+            "    from src.routes.work_items import router as work_items_router\n"
+            "    app.include_router(work_items_router, prefix='/v1')\n"
+            "except Exception:\n"
+            "    pass\n\n"
+            "try:\n"
+            "    from src.routes.dashboard import router as dashboard_router\n"
+            "    app.include_router(dashboard_router)\n"
+            "    from src.routes.api_metrics import router as metrics_router\n"
+            "    app.include_router(metrics_router, prefix='/api')\n"
+            "except Exception:\n"
+            "    pass\n\n"
+            "@app.on_event('startup')\n"
+            "def on_startup() -> None:\n"
+            "    logger.info('Application startup complete')\n"
+        )
+
+    def _fastapi_health_routes(self) -> str:
+        return (
+            '"""Health and readiness endpoints."""\n\n'
+            "from fastapi import APIRouter\n\n"
+            "router = APIRouter(tags=['health'])\n\n"
+            "@router.get('/health')\n"
+            "def health() -> dict:\n"
+            "    return {'status': 'ok'}\n\n"
+            "@router.get('/ready')\n"
+            "def ready() -> dict:\n"
+            "    return {'ready': True}\n"
+        )
+
+    def _work_item_model_py(self) -> str:
+        return (
+            '"""Domain models for Work Items."""\n\n'
+            "from datetime import datetime\n"
+            "from pydantic import BaseModel, Field\n\n"
+            "class WorkItemCreate(BaseModel):\n"
+            "    title: str = Field(min_length=3, max_length=200)\n"
+            "    description: str = Field(default='', max_length=2000)\n\n"
+            "class WorkItem(WorkItemCreate):\n"
+            "    id: int\n"
+            "    created_at: datetime\n"
+        )
+
+    def _work_items_service_py(self) -> str:
+        return (
+            '"""Business logic for Work Items (in-memory repository)."""\n\n'
+            "import logging\n"
+            "from datetime import datetime\n"
+            "from typing import Dict, List\n\n"
+            "from src.models.work_item import WorkItem, WorkItemCreate\n\n"
+            "logger = logging.getLogger(__name__)\n\n"
+            "class WorkItemsService:\n"
+            "    def __init__(self) -> None:\n"
+            "        self._db: Dict[int, WorkItem] = {}\n"
+            "        self._seq = 0\n\n"
+            "    def list_items(self) -> List[WorkItem]:\n"
+            "        return sorted(self._db.values(), key=lambda x: x.id)\n\n"
+            "    def create_item(self, payload: WorkItemCreate) -> WorkItem:\n"
+            "        self._seq += 1\n"
+            "        item = WorkItem(id=self._seq, created_at=datetime.utcnow(), **payload.model_dump())\n"
+            "        self._db[item.id] = item\n"
+            "        logger.info('Created work_item id=%s title=%s', item.id, item.title)\n"
+            "        return item\n\n"
+            "    def get_item(self, item_id: int) -> WorkItem:\n"
+            "        if item_id not in self._db:\n"
+            "            raise KeyError('work_item_not_found')\n"
+            "        return self._db[item_id]\n\n"
+            "    def delete_item(self, item_id: int) -> None:\n"
+            "        if item_id not in self._db:\n"
+            "            raise KeyError('work_item_not_found')\n"
+            "        del self._db[item_id]\n"
+            "        logger.info('Deleted work_item id=%s', item_id)\n"
+        )
+
+    def _fastapi_work_items_routes(self) -> str:
+        return (
+            '"""Work Items REST endpoints."""\n\n'
+            "import logging\n"
+            "from fastapi import APIRouter, HTTPException\n\n"
+            "from src.models.work_item import WorkItem, WorkItemCreate\n"
+            "from src.services.work_items_service import WorkItemsService\n\n"
+            "logger = logging.getLogger(__name__)\n"
+            "router = APIRouter(tags=['work-items'])\n"
+            "service = WorkItemsService()\n\n"
+            "@router.get('/work-items', response_model=list[WorkItem])\n"
+            "def list_work_items() -> list[WorkItem]:\n"
+            "    return service.list_items()\n\n"
+            "@router.post('/work-items', response_model=WorkItem, status_code=201)\n"
+            "def create_work_item(payload: WorkItemCreate) -> WorkItem:\n"
+            "    try:\n"
+            "        return service.create_item(payload)\n"
+            "    except Exception as e:\n"
+            "        logger.exception('Failed to create work item')\n"
+            "        raise HTTPException(status_code=500, detail=str(e))\n\n"
+            "@router.get('/work-items/{item_id}', response_model=WorkItem)\n"
+            "def get_work_item(item_id: int) -> WorkItem:\n"
+            "    try:\n"
+            "        return service.get_item(item_id)\n"
+            "    except KeyError:\n"
+            "        raise HTTPException(status_code=404, detail='Not found')\n\n"
+            "@router.delete('/work-items/{item_id}', status_code=204)\n"
+            "def delete_work_item(item_id: int) -> None:\n"
+            "    try:\n"
+            "        service.delete_item(item_id)\n"
+            "        return None\n"
+            "    except KeyError:\n"
+            "        raise HTTPException(status_code=404, detail='Not found')\n"
+        )
+
+    def _test_health_py(self) -> str:
+        return (
+            "import pytest\n"
+            "from fastapi.testclient import TestClient\n\n"
+            "from src.main import app\n\n"
+            "client = TestClient(app)\n\n"
+            "def test_health_ok():\n"
+            "    r = client.get('/health')\n"
+            "    assert r.status_code == 200\n"
+            "    assert r.json()['status'] == 'ok'\n"
+        )
+
+    def _test_work_items_py(self) -> str:
+        return (
+            "from fastapi.testclient import TestClient\n\n"
+            "from src.main import app\n\n"
+            "client = TestClient(app)\n\n"
+            "def test_create_list_get_delete():\n"
+            "    r = client.post('/v1/work-items', json={'title': 'Ship feature', 'description': 'Implement X'})\n"
+            "    assert r.status_code == 201\n"
+            "    item = r.json()\n"
+            "    assert item['id'] == 1\n\n"
+            "    r = client.get('/v1/work-items')\n"
+            "    assert r.status_code == 200\n"
+            "    assert len(r.json()) == 1\n\n"
+            "    r = client.get('/v1/work-items/1')\n"
+            "    assert r.status_code == 200\n\n"
+            "    r = client.delete('/v1/work-items/1')\n"
+            "    assert r.status_code == 204\n"
+        )
+
+    def _cli_main_py(self) -> str:
+        return (
+            '"""CLI entry point."""\n\n'
+            "import argparse\n"
+            "import json\n"
+            "import logging\n"
+            "from pathlib import Path\n\n"
+            "from src.services.analyzer import analyze_log\n\n"
+            "logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')\n"
+            "logger = logging.getLogger(__name__)\n\n"
+            "def _build_parser() -> argparse.ArgumentParser:\n"
+            "    p = argparse.ArgumentParser(prog='log-auditor', description='Audit logs and produce anomaly reports.')\n"
+            "    sub = p.add_subparsers(dest='cmd', required=True)\n"
+            "    a = sub.add_parser('analyze', help='Analyze a log file')\n"
+            "    a.add_argument('--path', required=True, help='Path to log file')\n"
+            "    a.add_argument('--window', type=int, default=200, help='Sliding window size')\n"
+            "    a.add_argument('--threshold', type=float, default=0.15, help='Error-rate threshold for spike detection')\n"
+            "    a.add_argument('--out', default='-', help='Output path for JSON report, or - for stdout')\n"
+            "    return p\n\n"
+            "def main() -> int:\n"
+            "    args = _build_parser().parse_args()\n"
+            "    report = analyze_log(Path(args.path), window=args.window, threshold=args.threshold)\n"
+            "    payload = report.to_dict()\n"
+            "    if args.out == '-':\n"
+            "        print(json.dumps(payload, indent=2))\n"
+            "    else:\n"
+            "        Path(args.out).write_text(json.dumps(payload, indent=2), encoding='utf-8')\n"
+            "        logger.info('Report written to %s', args.out)\n"
+            "    return 0\n\n"
+            "if __name__ == '__main__':\n"
+            "    raise SystemExit(main())\n"
+        )
+
+    def _report_model_py(self) -> str:
+        return (
+            '"""Typed report model."""\n\n'
+            "from dataclasses import dataclass\n"
+            "from datetime import datetime\n"
+            "from typing import Any, Dict, List\n\n"
+            "@dataclass(frozen=True)\n"
+            "class Spike:\n"
+            "    index: int\n"
+            "    error_rate: float\n"
+            "    window: int\n\n"
+            "    def to_dict(self) -> Dict[str, Any]:\n"
+            "        return {'index': self.index, 'error_rate': self.error_rate, 'window': self.window}\n\n"
+            "@dataclass(frozen=True)\n"
+            "class Report:\n"
+            "    path: str\n"
+            "    total_lines: int\n"
+            "    error_lines: int\n"
+            "    error_rate: float\n"
+            "    spikes: List[Spike]\n"
+            "    generated_at: str\n\n"
+            "    def to_dict(self) -> Dict[str, Any]:\n"
+            "        return {\n"
+            "            'path': self.path,\n"
+            "            'total_lines': self.total_lines,\n"
+            "            'error_lines': self.error_lines,\n"
+            "            'error_rate': self.error_rate,\n"
+            "            'spikes': [s.to_dict() for s in self.spikes],\n"
+            "            'generated_at': self.generated_at,\n"
+            "        }\n"
+        )
+
+    def _log_parser_py(self) -> str:
+        return (
+            '"""Log parsing utilities."""\n\n'
+            "import json\n"
+            "from typing import Iterable, Iterator, Tuple\n\n"
+            "def iter_lines(path) -> Iterator[str]:\n"
+            "    with open(path, 'r', encoding='utf-8', errors='replace') as f:\n"
+            "        for line in f:\n"
+            "            line = line.strip()\n"
+            "            if line:\n"
+            "                yield line\n\n"
+            "def classify_line(line: str) -> Tuple[bool, str]:\n"
+            "    # JSON logs: treat level=error as error\n"
+            "    if line.startswith('{') and line.endswith('}'):\n"
+            "        try:\n"
+            "            obj = json.loads(line)\n"
+            "            level = str(obj.get('level', '')).lower()\n"
+            "            msg = str(obj.get('message', line))\n"
+            "            return (level in {'error', 'fatal', 'critical'}, msg)\n"
+            "        except Exception:\n"
+            "            pass\n"
+            "    lowered = line.lower()\n"
+            "    is_err = any(tok in lowered for tok in [' error ', 'exception', 'traceback', 'fatal']) or lowered.startswith('error')\n"
+            "    return is_err, line\n"
+        )
+
+    def _log_analyzer_py(self) -> str:
+        return (
+            '"""Log analysis with spike detection."""\n\n'
+            "import logging\n"
+            "from datetime import datetime\n"
+            "from pathlib import Path\n"
+            "from typing import List\n\n"
+            "from src.models.report import Report, Spike\n"
+            "from src.services.log_parser import iter_lines, classify_line\n\n"
+            "logger = logging.getLogger(__name__)\n\n"
+            "def analyze_log(path: Path, window: int = 200, threshold: float = 0.15) -> Report:\n"
+            "    if window < 20:\n"
+            "        raise ValueError('window must be >= 20')\n"
+            "    if threshold <= 0 or threshold >= 1:\n"
+            "        raise ValueError('threshold must be between 0 and 1')\n\n"
+            "    total = 0\n"
+            "    error_flags: List[int] = []\n\n"
+            "    for line in iter_lines(path):\n"
+            "        is_err, _ = classify_line(line)\n"
+            "        error_flags.append(1 if is_err else 0)\n"
+            "        total += 1\n\n"
+            "    err = sum(error_flags)\n"
+            "    overall_rate = (err / total) if total else 0.0\n\n"
+            "    spikes: List[Spike] = []\n"
+            "    if total >= window:\n"
+            "        current = sum(error_flags[:window])\n"
+            "        for i in range(window, total + 1):\n"
+            "            rate = current / window\n"
+            "            if rate >= threshold:\n"
+            "                spikes.append(Spike(index=i - 1, error_rate=rate, window=window))\n"
+            "            if i < total:\n"
+            "                current += error_flags[i] - error_flags[i - window]\n\n"
+            "    logger.info('Analyzed %s lines, error_rate=%.3f spikes=%s', total, overall_rate, len(spikes))\n"
+            "    return Report(\n"
+            "        path=str(path),\n"
+            "        total_lines=total,\n"
+            "        error_lines=err,\n"
+            "        error_rate=overall_rate,\n"
+            "        spikes=spikes,\n"
+            "        generated_at=datetime.utcnow().isoformat(),\n"
+            "    )\n"
+        )
+
+    def _test_analyzer_py(self) -> str:
+        return (
+            "from pathlib import Path\n\n"
+            "from src.services.analyzer import analyze_log\n\n"
+            "def test_analyze_log_detects_spike(tmp_path: Path):\n"
+            "    p = tmp_path / 'app.log'\n"
+            "    lines = []\n"
+            "    lines.extend(['INFO ok' for _ in range(100)])\n"
+            "    lines.extend(['ERROR boom' for _ in range(60)])\n"
+            "    lines.extend(['INFO ok' for _ in range(40)])\n"
+            "    p.write_text('\\n'.join(lines), encoding='utf-8')\n\n"
+            "    report = analyze_log(p, window=50, threshold=0.5)\n"
+            "    assert report.total_lines == 200\n"
+            "    assert report.error_lines == 60\n"
+            "    assert len(report.spikes) > 0\n"
+        )
+
+    def _dashboard_routes_py(self) -> str:
+        return (
+            '"""UI routes for the dashboard."""\n\n'
+            "from fastapi import APIRouter, Request\n"
+            "from fastapi.responses import HTMLResponse\n"
+            "from fastapi.templating import Jinja2Templates\n\n"
+            "router = APIRouter(tags=['ui'])\n"
+            "templates = Jinja2Templates(directory='templates')\n\n"
+            "@router.get('/', response_class=HTMLResponse)\n"
+            "def index(request: Request):\n"
+            "    return templates.TemplateResponse('index.html', {'request': request})\n"
+        )
+
+    def _metrics_model_py(self) -> str:
+        return (
+            '"""Typed metrics model."""\n\n'
+            "from pydantic import BaseModel\n\n"
+            "class Metrics(BaseModel):\n"
+            "    service: str\n"
+            "    status: str\n"
+            "    now_utc: str\n"
+        )
+
+    def _metrics_service_py(self) -> str:
+        return (
+            '"""Business logic for metrics."""\n\n'
+            "from datetime import datetime\n\n"
+            "from src.models.metrics import Metrics\n\n"
+            "def current_metrics(service: str) -> Metrics:\n"
+            "    return Metrics(service=service, status='ok', now_utc=datetime.utcnow().isoformat())\n"
+        )
+
+    def _api_metrics_routes_py(self) -> str:
+        return (
+            '"""JSON API endpoints."""\n\n'
+            "from fastapi import APIRouter\n\n"
+            "from src.models.metrics import Metrics\n"
+            "from src.services.metrics_service import current_metrics\n\n"
+            "router = APIRouter(tags=['api'])\n\n"
+            "@router.get('/metrics', response_model=Metrics)\n"
+            "def metrics() -> Metrics:\n"
+            "    return current_metrics(service='developer-dashboard')\n"
+        )
+
+    def _template_index_html(self) -> str:
+        return (
+            "<!doctype html>\n"
+            "<html lang='en'>\n"
+            "  <head>\n"
+            "    <meta charset='utf-8'/>\n"
+            "    <meta name='viewport' content='width=device-width, initial-scale=1'/>\n"
+            "    <title>Developer Dashboard</title>\n"
+            "    <link rel='stylesheet' href='/static/styles.css'/>\n"
+            "  </head>\n"
+            "  <body>\n"
+            "    <main class='container'>\n"
+            "      <h1>Developer Dashboard</h1>\n"
+            "      <p>Hiring-optimized full-stack FastAPI app (UI + API).</p>\n"
+            "      <section class='card'>\n"
+            "        <h2>Live Metrics</h2>\n"
+            "        <pre id='metrics'>Loading...</pre>\n"
+            "      </section>\n"
+            "    </main>\n"
+            "    <script>\n"
+            "      fetch('/api/metrics')\n"
+            "        .then(r => r.json())\n"
+            "        .then(data => { document.getElementById('metrics').textContent = JSON.stringify(data, null, 2); })\n"
+            "        .catch(err => { document.getElementById('metrics').textContent = String(err); });\n"
+            "    </script>\n"
+            "  </body>\n"
+            "</html>\n"
+        )
+
+    def _static_css(self) -> str:
+        return (
+            "body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;margin:0;background:#0b1020;color:#e7e9ee;}\n"
+            ".container{max-width:900px;margin:0 auto;padding:32px;}\n"
+            "h1{font-size:32px;margin:0 0 8px;}\n"
+            "p{opacity:.9;}\n"
+            ".card{background:#141a33;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-top:16px;}\n"
+            "pre{background:#0f1530;border-radius:10px;padding:12px;overflow:auto;}\n"
+        )
+
+    def _test_ui_py(self) -> str:
+        return (
+            "from fastapi.testclient import TestClient\n\n"
+            "from src.main import app\n\n"
+            "client = TestClient(app)\n\n"
+            "def test_index_renders():\n"
+            "    r = client.get('/')\n"
+            "    assert r.status_code == 200\n"
+            "    assert 'Developer Dashboard' in r.text\n\n"
+            "def test_metrics_api():\n"
+            "    r = client.get('/api/metrics')\n"
+            "    assert r.status_code == 200\n"
+            "    payload = r.json()\n"
+            "    assert payload['status'] == 'ok'\n"
+        )
