@@ -7,6 +7,7 @@ A production-grade Python application for GitHub repository management.
 import sys
 import argparse
 from typing import Optional
+import logging
 from config import Config
 from github_service import GitHubService
 from repo_analyzer import RepositoryAnalyzer
@@ -21,6 +22,8 @@ from scheduler import GitHubAgentScheduler
 
 def main():
     """Main entry point for the GitHub automation agent."""
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
     parser = argparse.ArgumentParser(
         description="GitHub Automation Agent - Manage your GitHub repositories",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -81,6 +84,10 @@ Examples:
         # Authenticate with GitHub
         if not github_service.authenticate():
             sys.exit(1)
+
+        logger.info("Starting recruiter-grade project generation...")
+        project_generator = ProjectGenerator(github_service)
+        project_generator.generate_projects_if_needed()
         
         # Initialize repository analyzer
         analyzer = RepositoryAnalyzer(github_service)
