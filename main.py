@@ -85,44 +85,10 @@ Examples:
         # Initialize repository analyzer
         analyzer = RepositoryAnalyzer(github_service)
         
-        # Execute requested action
-        if args.full_agent:
-            # Run full GitHub agent pipeline
-            scheduler = GitHubAgentScheduler()
-            results = scheduler.run_full_pipeline()
-            scheduler.print_pipeline_summary(results)
-            
-        elif args.schedule:
-            # Run scheduler continuously
-            scheduler = GitHubAgentScheduler()
-            scheduler.run_scheduler(args.interval)
-            
-        elif args.repo:
-            repo_details = github_service.get_repository_by_name(args.repo)
-            if repo_details:
-                print_repository_details(repo_details, args.verbose)
-            else:
-                print(f"Repository '{args.repo}' not found.")
-                sys.exit(1)
-        
-        elif args.count:
-            repositories = github_service.get_user_repositories()
-            print(f"Total repositories: {len(repositories)}")
-        
-        else:
-            # Default action: analyze repositories and show results
-            print_analysis_results(analyzer)
-            
-            # Initialize repository improver and check for README needs
-            repositories = analyzer.github_service.get_user_repositories()
-            improver = RepositoryImprover()
-            improvements = improver.analyze_repositories_needing_readme(repositories)
-            print_readme_improvements(improvements)
-            
-            # Initialize GitHub executor and push README files
-            if improvements:
-                executor = GitHubExecutor(github_service.github)
-                push_readme_files(executor, improvements)
+        # Always run full GitHub agent pipeline (CI/CD execution mode)
+        scheduler = GitHubAgentScheduler()
+        results = scheduler.run_full_pipeline()
+        scheduler.print_pipeline_summary(results)
     
     except ValueError as e:
         print(f"Configuration error: {e}")
