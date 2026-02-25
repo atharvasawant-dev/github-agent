@@ -39,10 +39,13 @@ class GenerationDecision:
 class ProjectGenerator:
     """Hiring-optimized project generator that uses PyGithub to create and populate repositories."""
 
-    def __init__(self, github_client: Github):
-        self.github = github_client
+    def __init__(self, github_client: Any):
+        self.github = getattr(github_client, "github", github_client)
         self.user = None
         self._setup_logging()
+
+    def generate_projects_if_needed(self) -> Dict[str, Any]:
+        return self.generate_new_projects(1)
 
     def _setup_logging(self) -> None:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
