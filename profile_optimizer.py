@@ -11,20 +11,19 @@ from github import Github, GithubException
 
 class ProfileOptimizer:
     """Optimizes GitHub profile for professional appearance."""
-    
+
     def __init__(self, github_client: Github):
         self.github = github_client
         self.user = None
         self._setup_logging()
-    
+
     def _setup_logging(self) -> None:
         """Set up logging for optimizer."""
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
         )
         self.logger = logging.getLogger(__name__)
-    
+
     def authenticate(self) -> bool:
         """Authenticate with GitHub."""
         try:
@@ -34,66 +33,70 @@ class ProfileOptimizer:
         except GithubException as e:
             self.logger.error(f"Authentication failed: {e}")
             return False
-    
+
     def get_profile_stats(self) -> Dict[str, Any]:
         """Get comprehensive profile statistics."""
         if not self.user:
             return {}
-        
+
         try:
-            repos = list(self.user.get_repos(type='owner'))
-            
+            repos = list(self.user.get_repos(type="owner"))
+
             total_stars = sum(repo.stargazers_count for repo in repos)
             total_forks = sum(repo.forks_count for repo in repos)
-            
+
             languages = {}
             for repo in repos:
                 if repo.language:
                     languages[repo.language] = languages.get(repo.language, 0) + 1
-            
+
             # Get user info
             user_data = {
-                'login': self.user.login,
-                'name': self.user.name or self.user.login,
-                'bio': self.user.bio or '',
-                'location': self.user.location or '',
-                'company': self.user.company or '',
-                'email': self.user.email or '',
-                'blog': self.user.blog or '',
-                'followers': self.user.followers,
-                'following': self.user.following,
-                'public_repos': self.user.public_repos,
-                'total_stars': total_stars,
-                'total_forks': total_forks,
-                'top_languages': sorted(languages.items(), key=lambda x: x[1], reverse=True)[:5],
-                'repositories': [
+                "login": self.user.login,
+                "name": self.user.name or self.user.login,
+                "bio": self.user.bio or "",
+                "location": self.user.location or "",
+                "company": self.user.company or "",
+                "email": self.user.email or "",
+                "blog": self.user.blog or "",
+                "followers": self.user.followers,
+                "following": self.user.following,
+                "public_repos": self.user.public_repos,
+                "total_stars": total_stars,
+                "total_forks": total_forks,
+                "top_languages": sorted(
+                    languages.items(), key=lambda x: x[1], reverse=True
+                )[:5],
+                "repositories": [
                     {
-                        'name': repo.name,
-                        'description': repo.description,
-                        'stars': repo.stargazers_count,
-                        'forks': repo.forks_count,
-                        'language': repo.language,
-                        'updated_at': repo.updated_at,
-                        'url': repo.html_url
+                        "name": repo.name,
+                        "description": repo.description,
+                        "stars": repo.stargazers_count,
+                        "forks": repo.forks_count,
+                        "language": repo.language,
+                        "updated_at": repo.updated_at,
+                        "url": repo.html_url,
                     }
-                    for repo in sorted(repos, key=lambda x: x.stargazers_count, reverse=True)[:6]
-                ]
+                    for repo in sorted(
+                        repos, key=lambda x: x.stargazers_count, reverse=True
+                    )[:6]
+                ],
             }
-            
+
             return user_data
-            
+
         except GithubException as e:
             self.logger.error(f"Failed to get profile stats: {e}")
             return {}
-    
+
     def generate_profile_readme(self, stats: Dict[str, Any]) -> str:
         """Generate professional profile README."""
         if not stats:
             return ""
-        
+
         # Calculate additional stats
         total_contributions = self._estimate_contributions(stats)
-        
+
         readme_content = f"""# Hi there, I'm {stats['name']}! 👋
 
 {stats.get('bio', 'Passionate software engineer building innovative solutions and contributing to open source.')}
@@ -163,11 +166,11 @@ class ProfileOptimizer:
 ## 🌟 Featured Projects
 
 """
-        
+
         # Add featured repositories
-        featured_repos = stats['repositories'][:3]
+        featured_repos = stats["repositories"][:3]
         for repo in featured_repos:
-            repo_desc = repo.get('description', 'No description available')
+            repo_desc = repo.get("description", "No description available")
             readme_content += f"""
 ### [{repo['name']}]({repo['url']})
 
@@ -179,7 +182,7 @@ class ProfileOptimizer:
 **📅 Updated:** {repo['updated_at'].strftime('%Y-%m-%d')}
 
 """
-        
+
         readme_content += f"""
 ## 📊 Profile Summary
 
@@ -193,11 +196,11 @@ class ProfileOptimizer:
 ### 🏷️ Top Languages
 
 """
-        
+
         # Add top languages
-        for lang, count in stats['top_languages']:
+        for lang, count in stats["top_languages"]:
             readme_content += f"- **{lang}:** {count} repositories\n"
-        
+
         readme_content += f"""
 ## 🎯 Current Focus
 
@@ -240,54 +243,52 @@ class ProfileOptimizer:
 
 *Last updated: {self._get_current_date()}*
 """
-        
+
         return readme_content
-    
+
     def _estimate_contributions(self, stats: Dict[str, Any]) -> int:
         """Estimate total contributions based on repository activity."""
         # Simple estimation based on repository count and activity
-        base_contributions = stats['public_repos'] * 50  # Average 50 commits per repo
-        star_bonus = stats['total_stars'] * 10  # Bonus for popular repos
+        base_contributions = stats["public_repos"] * 50  # Average 50 commits per repo
+        star_bonus = stats["total_stars"] * 10  # Bonus for popular repos
         return base_contributions + star_bonus
-    
+
     def _get_current_date(self) -> str:
         """Get current date in readable format."""
         from datetime import datetime
-        return datetime.now().strftime('%B %d, %Y')
-    
+
+        return datetime.now().strftime("%B %d, %Y")
+
     def update_profile_readme(self) -> Dict[str, Any]:
         """Update or create profile README repository."""
-        result = {
-            'success': False,
-            'profile_repo': None,
-            'message': '',
-            'errors': []
-        }
-        
+        result = {"success": False, "profile_repo": None, "message": "", "errors": []}
+
         try:
             if not self.user:
                 if not self.authenticate():
-                    result['errors'].append("Authentication failed")
+                    result["errors"].append("Authentication failed")
                     return result
-            
+
             # Get profile stats
             self.logger.info("Optimizing GitHub profile")
             stats = self.get_profile_stats()
-            
+
             if not stats:
-                result['errors'].append("Failed to get profile statistics")
+                result["errors"].append("Failed to get profile statistics")
                 return result
-            
+
             # Generate README content
             readme_content = self.generate_profile_readme(stats)
-            
+
             # Try to find or create profile repository
             profile_repo_name = self.user.login
-            
+
             try:
                 profile_repo = self.user.get_repo(profile_repo_name)
-                self.logger.info(f"Found existing profile repository: {profile_repo_name}")
-                
+                self.logger.info(
+                    f"Found existing profile repository: {profile_repo_name}"
+                )
+
                 # Update existing README
                 try:
                     existing_readme = profile_repo.get_contents("README.md")
@@ -296,9 +297,9 @@ class ProfileOptimizer:
                         message="Update profile README with latest stats",
                         content=readme_content,
                         sha=existing_readme.sha,
-                        branch=profile_repo.default_branch
+                        branch=profile_repo.default_branch,
                     )
-                    result['message'] = "Updated existing profile README"
+                    result["message"] = "Updated existing profile README"
                 except GithubException as e:
                     if e.status == 404:
                         # README doesn't exist, create it
@@ -306,17 +307,19 @@ class ProfileOptimizer:
                             path="README.md",
                             message="Create professional profile README",
                             content=readme_content,
-                            branch=profile_repo.default_branch
+                            branch=profile_repo.default_branch,
                         )
-                        result['message'] = "Created new profile README"
+                        result["message"] = "Created new profile README"
                     else:
                         raise e
-                
+
             except GithubException as e:
                 if e.status == 404:
                     # Profile repository doesn't exist, create it
-                    self.logger.info(f"Creating profile repository: {profile_repo_name}")
-                    
+                    self.logger.info(
+                        f"Creating profile repository: {profile_repo_name}"
+                    )
+
                     profile_repo = self.user.create_repo(
                         name=profile_repo_name,
                         description=f"Professional profile for {stats['name']}",
@@ -324,60 +327,58 @@ class ProfileOptimizer:
                         has_wiki=False,
                         has_issues=False,
                         has_projects=False,
-                        auto_init=False
+                        auto_init=False,
                     )
-                    
+
                     # Create README in new repository
                     profile_repo.create_file(
                         path="README.md",
                         message="Create professional profile README",
                         content=readme_content,
-                        branch=profile_repo.default_branch
+                        branch=profile_repo.default_branch,
                     )
-                    
-                    result['message'] = "Created profile repository and README"
+
+                    result["message"] = "Created profile repository and README"
                 else:
                     raise e
-            
-            result['success'] = True
-            result['profile_repo'] = profile_repo_name
+
+            result["success"] = True
+            result["profile_repo"] = profile_repo_name
             self.logger.info(f"Successfully optimized GitHub profile")
-            
+
         except GithubException as e:
             error_msg = f"GitHub API error: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
+            result["errors"].append(error_msg)
         except Exception as e:
             error_msg = f"Unexpected error: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
-        
+            result["errors"].append(error_msg)
+
         return result
-    
+
     def optimize_profile_settings(self) -> Dict[str, Any]:
         """Optimize profile settings for professional appearance."""
-        result = {
-            'success': False,
-            'updates': [],
-            'errors': []
-        }
-        
+        result = {"success": False, "updates": [], "errors": []}
+
         try:
             if not self.user:
                 if not self.authenticate():
-                    result['errors'].append("Authentication failed")
+                    result["errors"].append("Authentication failed")
                     return result
-            
+
             # Note: PyGithub doesn't support updating profile bio directly
             # This would need to be done manually or via GraphQL API
-            self.logger.info("Profile settings optimization requires manual intervention")
-            
-            result['success'] = True
-            result['updates'].append("Profile optimization recommendations generated")
-            
+            self.logger.info(
+                "Profile settings optimization requires manual intervention"
+            )
+
+            result["success"] = True
+            result["updates"].append("Profile optimization recommendations generated")
+
         except Exception as e:
             error_msg = f"Error optimizing profile settings: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
-        
+            result["errors"].append(error_msg)
+
         return result

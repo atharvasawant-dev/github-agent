@@ -2,6 +2,7 @@ from github import GithubException
 import logging
 import base64
 
+
 class ProjectGenerator:
 
     def __init__(self, github_service):
@@ -33,7 +34,7 @@ class ProjectGenerator:
             repo = self.user.create_repo(
                 name=project_name,
                 description="Production-grade FastAPI backend with modular architecture, CI/CD, logging, and testing.",
-                private=False
+                private=False,
             )
 
             readme = """# FastAPI Production Backend
@@ -54,11 +55,7 @@ Run:
 uvicorn main:app --reload
 """
 
-            repo.create_file(
-                "README.md",
-                "Initial commit",
-                readme
-            )
+            repo.create_file("README.md", "Initial commit", readme)
 
             print(f"SUCCESS: Created recruiter-grade repository: {project_name}")
 

@@ -10,85 +10,111 @@ from datetime import datetime
 
 class RepositoryImprover:
     """Generates improvement suggestions and content for repositories."""
-    
+
     def __init__(self):
         self.readme_templates = {
-            'default': self._generate_default_template,
-            'web_project': self._generate_web_template,
-            'api_project': self._generate_api_template,
-            'data_science': self._generate_data_science_template,
-            'mobile_app': self._generate_mobile_template,
-            'cli_tool': self._generate_cli_template
+            "default": self._generate_default_template,
+            "web_project": self._generate_web_template,
+            "api_project": self._generate_api_template,
+            "data_science": self._generate_data_science_template,
+            "mobile_app": self._generate_mobile_template,
+            "cli_tool": self._generate_cli_template,
         }
-    
-    def analyze_repositories_needing_readme(self, repositories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+    def analyze_repositories_needing_readme(
+        self, repositories: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Identify repositories that need README files and generate templates.
-        
+
         Args:
             repositories: List of repository dictionaries from analysis
-            
+
         Returns:
             List of dictionaries with repo names and generated README content
         """
         improvements = []
-        
+
         for repo in repositories:
-            if not repo.get('has_readme', False):
+            if not repo.get("has_readme", False):
                 readme_content = self._generate_readme_for_repository(repo)
-                improvements.append({
-                    'repo_name': repo['name'],
-                    'readme_content': readme_content
-                })
-        
+                improvements.append(
+                    {"repo_name": repo["name"], "readme_content": readme_content}
+                )
+
         return improvements
-    
+
     def _detect_project_type(self, repo: Dict[str, Any]) -> str:
         """Detect project type based on repository metadata."""
-        name = repo.get('name', '').lower()
-        language = (repo.get('language') or '').lower()
-        description = (repo.get('description') or '').lower()
-        
+        name = repo.get("name", "").lower()
+        language = (repo.get("language") or "").lower()
+        description = (repo.get("description") or "").lower()
+
         # Web project indicators
-        if any(indicator in name or indicator in description for indicator in 
-               ['web', 'site', 'frontend', 'backend', 'dashboard', 'portal']):
-            return 'web_project'
-        
+        if any(
+            indicator in name or indicator in description
+            for indicator in [
+                "web",
+                "site",
+                "frontend",
+                "backend",
+                "dashboard",
+                "portal",
+            ]
+        ):
+            return "web_project"
+
         # API project indicators
-        if any(indicator in name or indicator in description for indicator in 
-               ['api', 'rest', 'graphql', 'service', 'server']):
-            return 'api_project'
-        
+        if any(
+            indicator in name or indicator in description
+            for indicator in ["api", "rest", "graphql", "service", "server"]
+        ):
+            return "api_project"
+
         # Data science indicators
-        if any(indicator in name or indicator in description for indicator in 
-               ['ml', 'ai', 'data', 'analysis', 'model', 'predict']) or \
-           language in ['python', 'r', 'jupyter']:
-            return 'data_science'
-        
+        if any(
+            indicator in name or indicator in description
+            for indicator in ["ml", "ai", "data", "analysis", "model", "predict"]
+        ) or language in ["python", "r", "jupyter"]:
+            return "data_science"
+
         # Mobile app indicators
-        if any(indicator in name or indicator in description for indicator in 
-               ['app', 'mobile', 'ios', 'android', 'flutter', 'react-native']):
-            return 'mobile_app'
-        
+        if any(
+            indicator in name or indicator in description
+            for indicator in [
+                "app",
+                "mobile",
+                "ios",
+                "android",
+                "flutter",
+                "react-native",
+            ]
+        ):
+            return "mobile_app"
+
         # CLI tool indicators
-        if any(indicator in name or indicator in description for indicator in 
-               ['cli', 'tool', 'command', 'utility', 'script']):
-            return 'cli_tool'
-        
-        return 'default'
-    
+        if any(
+            indicator in name or indicator in description
+            for indicator in ["cli", "tool", "command", "utility", "script"]
+        ):
+            return "cli_tool"
+
+        return "default"
+
     def _generate_readme_for_repository(self, repo: Dict[str, Any]) -> str:
         """Generate appropriate README template based on repository type."""
         project_type = self._detect_project_type(repo)
-        template_func = self.readme_templates.get(project_type, self._generate_default_template)
+        template_func = self.readme_templates.get(
+            project_type, self._generate_default_template
+        )
         return template_func(repo)
-    
+
     def _generate_default_template(self, repo: Dict[str, Any]) -> str:
         """Generate a default README template."""
-        name = repo.get('name', 'Project Name')
-        description = repo.get('description', 'A brief description of this project.')
-        language = repo.get('language', 'Unknown')
-        
+        name = repo.get("name", "Project Name")
+        description = repo.get("description", "A brief description of this project.")
+        language = repo.get("language", "Unknown")
+
         template = f"""# {name}
 
 {description}
@@ -144,12 +170,12 @@ Project Link: [https://github.com/yourusername/{name}](https://github.com/yourus
 *This README was generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         return template
-    
+
     def _generate_web_template(self, repo: Dict[str, Any]) -> str:
         """Generate README template for web projects."""
-        name = repo.get('name', 'Web Project')
-        description = repo.get('description', 'A modern web application.')
-        
+        name = repo.get("name", "Web Project")
+        description = repo.get("description", "A modern web application.")
+
         template = f"""# {name}
 
 {description}
@@ -217,12 +243,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         return template
-    
+
     def _generate_api_template(self, repo: Dict[str, Any]) -> str:
         """Generate README template for API projects."""
-        name = repo.get('name', 'API Project')
-        description = repo.get('description', 'A RESTful API service.')
-        
+        name = repo.get("name", "API Project")
+        description = repo.get("description", "A RESTful API service.")
+
         template = f"""# {name}
 
 {description}
@@ -306,12 +332,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         return template
-    
+
     def _generate_data_science_template(self, repo: Dict[str, Any]) -> str:
         """Generate README template for data science projects."""
-        name = repo.get('name', 'Data Science Project')
-        description = repo.get('description', 'A data science and machine learning project.')
-        
+        name = repo.get("name", "Data Science Project")
+        description = repo.get(
+            "description", "A data science and machine learning project."
+        )
+
         template = f"""# {name}
 
 {description}
@@ -391,12 +419,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         return template
-    
+
     def _generate_mobile_template(self, repo: Dict[str, Any]) -> str:
         """Generate README template for mobile app projects."""
-        name = repo.get('name', 'Mobile App')
-        description = repo.get('description', 'A mobile application.')
-        
+        name = repo.get("name", "Mobile App")
+        description = repo.get("description", "A mobile application.")
+
         template = f"""# {name}
 
 {description}
@@ -473,12 +501,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         return template
-    
+
     def _generate_cli_template(self, repo: Dict[str, Any]) -> str:
         """Generate README template for CLI tools."""
-        name = repo.get('name', 'CLI Tool')
-        description = repo.get('description', 'A command-line tool.')
-        
+        name = repo.get("name", "CLI Tool")
+        description = repo.get("description", "A command-line tool.")
+
         template = f"""# {name}
 
 {description}
@@ -556,42 +584,46 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         return template
-    
+
     def print_improvement_summary(self, improvements: List[Dict[str, Any]]) -> None:
         """Print a summary of repositories that need README files."""
         if not improvements:
             print("✅ All repositories have README files!")
             return
-        
+
         print(f"\n📝 README Improvements Needed")
         print("=" * 50)
         print(f"Found {len(improvements)} repositories without README files:\n")
-        
+
         for i, improvement in enumerate(improvements, 1):
             print(f"{i}. {improvement['repo_name']}")
             print(f"   README template generated ✓")
             print()
-        
-        print(f"💡 Tip: Use the generated README templates to improve your repository documentation!")
-    
-    def export_readme_files(self, improvements: List[Dict[str, Any]], output_dir: str = "readme_templates") -> None:
+
+        print(
+            f"💡 Tip: Use the generated README templates to improve your repository documentation!"
+        )
+
+    def export_readme_files(
+        self, improvements: List[Dict[str, Any]], output_dir: str = "readme_templates"
+    ) -> None:
         """Export generated README files to a directory."""
         import os
-        
+
         if not improvements:
             print("No README files to export.")
             return
-        
+
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
-        
+
         for improvement in improvements:
             filename = f"{improvement['repo_name']}_README.md"
             filepath = os.path.join(output_dir, filename)
-            
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(improvement['readme_content'])
-        
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(improvement["readme_content"])
+
         print(f"📁 README templates exported to '{output_dir}' directory")
 
 
@@ -599,19 +631,19 @@ if __name__ == "__main__":
     # Example usage
     example_repos = [
         {
-            'name': 'my-web-app',
-            'description': 'A modern web application',
-            'language': 'JavaScript',
-            'has_readme': False
+            "name": "my-web-app",
+            "description": "A modern web application",
+            "language": "JavaScript",
+            "has_readme": False,
         },
         {
-            'name': 'data-analysis',
-            'description': 'Machine learning project',
-            'language': 'Python',
-            'has_readme': False
-        }
+            "name": "data-analysis",
+            "description": "Machine learning project",
+            "language": "Python",
+            "has_readme": False,
+        },
     ]
-    
+
     improver = RepositoryImprover()
     improvements = improver.analyze_repositories_needing_readme(example_repos)
     improver.print_improvement_summary(improvements)

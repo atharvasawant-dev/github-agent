@@ -13,20 +13,19 @@ from github import Github, GithubException
 
 class ActivityManager:
     """Manages GitHub activity with meaningful improvements."""
-    
+
     def __init__(self, github_client: Github):
         self.github = github_client
         self.user = None
         self._setup_logging()
-    
+
     def _setup_logging(self) -> None:
         """Set up logging for the activity manager."""
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
         )
         self.logger = logging.getLogger(__name__)
-    
+
     def authenticate(self) -> bool:
         """Authenticate with GitHub."""
         try:
@@ -36,19 +35,19 @@ class ActivityManager:
         except GithubException as e:
             self.logger.error(f"Authentication failed: {e}")
             return False
-    
+
     def should_create_activity(self) -> bool:
         """Check if new activity should be created."""
         if not self.user:
             return False
-        
+
         try:
             # Check last activity
-            repos = list(self.user.get_repos(type='owner'))
-            
+            repos = list(self.user.get_repos(type="owner"))
+
             if not repos:
                 return True
-            
+
             # Get the most recent commit across all repositories
             latest_commit = None
             for repo in repos:
@@ -60,79 +59,82 @@ class ActivityManager:
                             latest_commit = commit_date
                 except GithubException:
                     continue
-            
+
             # If no commits in last 3 days, create activity
             if not latest_commit:
                 return True
-            
-            days_since_last_commit = (datetime.now() - latest_commit.replace(tzinfo=None)).days
+
+            days_since_last_commit = (
+                datetime.now() - latest_commit.replace(tzinfo=None)
+            ).days
             return days_since_last_commit >= 3
-            
+
         except GithubException as e:
             self.logger.error(f"Failed to check activity status: {e}")
             return False
-    
+
     def get_improvement_suggestions(self) -> List[Dict[str, Any]]:
         """Get meaningful improvement suggestions."""
         suggestions = [
             {
-                'type': 'documentation',
-                'title': 'Improve README documentation',
-                'description': 'Add installation instructions and usage examples',
-                'priority': 'high'
+                "type": "documentation",
+                "title": "Improve README documentation",
+                "description": "Add installation instructions and usage examples",
+                "priority": "high",
             },
             {
-                'type': 'tests',
-                'title': 'Add unit tests',
-                'description': 'Increase test coverage for critical functions',
-                'priority': 'high'
+                "type": "tests",
+                "title": "Add unit tests",
+                "description": "Increase test coverage for critical functions",
+                "priority": "high",
             },
             {
-                'type': 'dependencies',
-                'title': 'Update dependencies',
-                'description': 'Update to latest stable versions',
-                'priority': 'medium'
+                "type": "dependencies",
+                "title": "Update dependencies",
+                "description": "Update to latest stable versions",
+                "priority": "medium",
             },
             {
-                'type': 'code_quality',
-                'title': 'Code refactoring',
-                'description': 'Improve code structure and readability',
-                'priority': 'medium'
+                "type": "code_quality",
+                "title": "Code refactoring",
+                "description": "Improve code structure and readability",
+                "priority": "medium",
             },
             {
-                'type': 'performance',
-                'title': 'Performance optimization',
-                'description': 'Optimize critical paths and reduce complexity',
-                'priority': 'low'
+                "type": "performance",
+                "title": "Performance optimization",
+                "description": "Optimize critical paths and reduce complexity",
+                "priority": "low",
             },
             {
-                'type': 'security',
-                'title': 'Security improvements',
-                'description': 'Add input validation and error handling',
-                'priority': 'high'
+                "type": "security",
+                "title": "Security improvements",
+                "description": "Add input validation and error handling",
+                "priority": "high",
             },
             {
-                'type': 'examples',
-                'title': 'Add usage examples',
-                'description': 'Create practical examples and tutorials',
-                'priority': 'medium'
+                "type": "examples",
+                "title": "Add usage examples",
+                "description": "Create practical examples and tutorials",
+                "priority": "medium",
             },
             {
-                'type': 'ci_cd',
-                'title': 'Improve CI/CD pipeline',
-                'description': 'Add automated testing and deployment',
-                'priority': 'medium'
-            }
+                "type": "ci_cd",
+                "title": "Improve CI/CD pipeline",
+                "description": "Add automated testing and deployment",
+                "priority": "medium",
+            },
         ]
-        
+
         return suggestions
-    
-    def generate_meaningful_commit(self, repo_name: str, improvement_type: str) -> Dict[str, Any]:
+
+    def generate_meaningful_commit(
+        self, repo_name: str, improvement_type: str
+    ) -> Dict[str, Any]:
         """Generate a meaningful commit based on improvement type."""
         commit_templates = {
-            'documentation': {
-                'files': {
-                    'docs/usage.md': '''# Usage Guide
+            "documentation": {
+                "files": {"docs/usage.md": """# Usage Guide
 
 ## Installation
 
@@ -171,14 +173,13 @@ Description of advanced feature 2.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-'''
-                },
-                'message': 'docs: Add comprehensive usage guide and troubleshooting',
-                'description': 'Added detailed usage documentation with examples'
+"""},
+                "message": "docs: Add comprehensive usage guide and troubleshooting",
+                "description": "Added detailed usage documentation with examples",
             },
-            'tests': {
-                'files': {
-                    'tests/test_integration.py': '''"""Integration tests for the application."""
+            "tests": {
+                "files": {
+                    "tests/test_integration.py": '''"""Integration tests for the application."""
 
 import pytest
 import sys
@@ -211,12 +212,11 @@ if __name__ == '__main__':
     pytest.main([__file__])
 '''
                 },
-                'message': 'test: Add integration tests for critical workflows',
-                'description': 'Added comprehensive integration test suite'
+                "message": "test: Add integration tests for critical workflows",
+                "description": "Added comprehensive integration test suite",
             },
-            'dependencies': {
-                'files': {
-                    'requirements.txt': '''# Core dependencies
+            "dependencies": {
+                "files": {"requirements.txt": """# Core dependencies
 requests>=2.31.0
 click>=8.1.0
 pydantic>=2.0.0
@@ -232,14 +232,13 @@ mypy>=1.5.0
 # Optional dependencies
 aiohttp>=3.8.0
 jinja2>=3.1.0
-'''
-                },
-                'message': 'deps: Update dependencies to latest stable versions',
-                'description': 'Updated all dependencies for security and performance'
+"""},
+                "message": "deps: Update dependencies to latest stable versions",
+                "description": "Updated all dependencies for security and performance",
             },
-            'code_quality': {
-                'files': {
-                    'src/utils.py': '''"""Utility functions for the application."""
+            "code_quality": {
+                "files": {
+                    "src/utils.py": '''"""Utility functions for the application."""
 
 import logging
 from typing import Any, Dict, List, Optional
@@ -306,12 +305,12 @@ class PerformanceTimer:
         logger.info(f"{self.operation_name} completed in {duration:.2f} seconds")
 '''
                 },
-                'message': 'refactor: Improve code structure with utility functions',
-                'description': 'Added utility functions for better code organization'
+                "message": "refactor: Improve code structure with utility functions",
+                "description": "Added utility functions for better code organization",
             },
-            'security': {
-                'files': {
-                    'src/security.py': '''"""Security utilities for the application."""
+            "security": {
+                "files": {
+                    "src/security.py": '''"""Security utilities for the application."""
 
 import hashlib
 import secrets
@@ -414,43 +413,43 @@ class SecurityConfig:
         return result
 '''
                 },
-                'message': 'security: Add security utilities and input validation',
-                'description': 'Implemented security measures for input handling and validation'
-            }
+                "message": "security: Add security utilities and input validation",
+                "description": "Implemented security measures for input handling and validation",
+            },
         }
-        
-        return commit_templates.get(improvement_type, commit_templates['documentation'])
-    
+
+        return commit_templates.get(improvement_type, commit_templates["documentation"])
+
     def create_meaningful_activity(self, repo_name: str) -> Dict[str, Any]:
         """Create meaningful activity for a repository."""
         result = {
-            'success': False,
-            'repo_name': repo_name,
-            'commit_message': '',
-            'description': '',
-            'errors': []
+            "success": False,
+            "repo_name": repo_name,
+            "commit_message": "",
+            "description": "",
+            "errors": [],
         }
-        
+
         try:
             if not self.user:
                 if not self.authenticate():
-                    result['errors'].append("Authentication failed")
+                    result["errors"].append("Authentication failed")
                     return result
-            
+
             repo = self.user.get_repo(repo_name)
-            
+
             # Get improvement suggestions
             suggestions = self.get_improvement_suggestions()
             improvement = random.choice(suggestions)
-            improvement_type = improvement['type']
-            
+            improvement_type = improvement["type"]
+
             self.logger.info(f"Creating meaningful activity: {improvement['title']}")
-            
+
             # Generate commit content
             commit_data = self.generate_meaningful_commit(repo_name, improvement_type)
-            
+
             # Create files and commit
-            for file_path, content in commit_data['files'].items():
+            for file_path, content in commit_data["files"].items():
                 try:
                     # Check if file exists
                     try:
@@ -458,86 +457,88 @@ class SecurityConfig:
                         # Update existing file
                         repo.update_file(
                             path=file_path,
-                            message=commit_data['message'],
+                            message=commit_data["message"],
                             content=content,
                             sha=existing_file.sha,
-                            branch=repo.default_branch
+                            branch=repo.default_branch,
                         )
                     except GithubException as e:
                         if e.status == 404:
                             # Create new file
                             repo.create_file(
                                 path=file_path,
-                                message=commit_data['message'],
+                                message=commit_data["message"],
                                 content=content,
-                                branch=repo.default_branch
+                                branch=repo.default_branch,
                             )
                         else:
                             raise e
                 except GithubException as e:
                     self.logger.warning(f"Failed to create {file_path}: {e}")
-            
-            result['success'] = True
-            result['commit_message'] = commit_data['message']
-            result['description'] = commit_data['description']
-            
+
+            result["success"] = True
+            result["commit_message"] = commit_data["message"]
+            result["description"] = commit_data["description"]
+
             self.logger.info(f"Successfully created activity in {repo_name}")
-            
+
         except GithubException as e:
             error_msg = f"GitHub API error for {repo_name}: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
+            result["errors"].append(error_msg)
         except Exception as e:
             error_msg = f"Unexpected error for {repo_name}: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
-        
+            result["errors"].append(error_msg)
+
         return result
-    
+
     def run_activity_cycle(self) -> Dict[str, Any]:
         """Run a complete activity cycle."""
         results = {
-            'success': False,
-            'activities_created': 0,
-            'repositories_updated': [],
-            'errors': []
+            "success": False,
+            "activities_created": 0,
+            "repositories_updated": [],
+            "errors": [],
         }
-        
+
         try:
             if not self.should_create_activity():
                 self.logger.info("No activity needed at this time")
-                results['success'] = True
+                results["success"] = True
                 return results
-            
+
             if not self.user:
                 if not self.authenticate():
-                    results['errors'].append("Authentication failed")
+                    results["errors"].append("Authentication failed")
                     return results
-            
+
             # Get user repositories
-            repos = list(self.user.get_repos(type='owner'))
-            
+            repos = list(self.user.get_repos(type="owner"))
+
             # Select a random repository for activity
             if repos:
                 target_repo = random.choice(repos)
                 activity_result = self.create_meaningful_activity(target_repo.name)
-                
-                if activity_result['success']:
-                    results['activities_created'] = 1
-                    results['repositories_updated'].append({
-                        'repo': target_repo.name,
-                        'message': activity_result['commit_message'],
-                        'description': activity_result['description']
-                    })
+
+                if activity_result["success"]:
+                    results["activities_created"] = 1
+                    results["repositories_updated"].append(
+                        {
+                            "repo": target_repo.name,
+                            "message": activity_result["commit_message"],
+                            "description": activity_result["description"],
+                        }
+                    )
                 else:
-                    results['errors'].extend(activity_result['errors'])
-            
-            results['success'] = True
+                    results["errors"].extend(activity_result["errors"])
+
+            results["success"] = True
             self.logger.info("Activity cycle complete")
-            
+
         except Exception as e:
             error_msg = f"Activity cycle failed: {e}"
             self.logger.error(error_msg)
-            results['errors'].append(error_msg)
-        
+            results["errors"].append(error_msg)
+
         return results

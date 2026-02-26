@@ -13,20 +13,19 @@ from github.ContentFile import ContentFile
 
 class RepositoryEnhancer:
     """Enhances repositories with professional structure and workflows."""
-    
+
     def __init__(self, github_client: Github):
         self.github = github_client
         self.user = None
         self._setup_logging()
-    
+
     def _setup_logging(self) -> None:
         """Set up logging for the enhancer."""
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
         )
         self.logger = logging.getLogger(__name__)
-    
+
     def authenticate(self) -> bool:
         """Authenticate with GitHub."""
         try:
@@ -36,72 +35,72 @@ class RepositoryEnhancer:
         except GithubException as e:
             self.logger.error(f"Authentication failed: {e}")
             return False
-    
+
     def enhance_repository(self, repo_name: str) -> Dict[str, Any]:
         """
         Enhance a repository with professional structure.
-        
+
         Args:
             repo_name: Name of the repository to enhance
-            
+
         Returns:
             Dictionary with enhancement results
         """
         result = {
-            'success': False,
-            'repo_name': repo_name,
-            'enhancements': [],
-            'errors': []
+            "success": False,
+            "repo_name": repo_name,
+            "enhancements": [],
+            "errors": [],
         }
-        
+
         try:
             if not self.user:
                 if not self.authenticate():
-                    result['errors'].append("Authentication failed")
+                    result["errors"].append("Authentication failed")
                     return result
-            
+
             repo = self.user.get_repo(repo_name)
             self.logger.info(f"Enhancing repository: {repo_name}")
-            
+
             # Add .gitignore if missing
             if self._should_add_gitignore(repo):
                 self._add_gitignore(repo)
-                result['enhancements'].append("Added .gitignore")
-            
+                result["enhancements"].append("Added .gitignore")
+
             # Add CI/CD workflow if missing
             if self._should_add_cicd(repo):
                 self._add_cicd_workflow(repo)
-                result['enhancements'].append("Added GitHub Actions CI/CD")
-            
+                result["enhancements"].append("Added GitHub Actions CI/CD")
+
             # Add requirements.txt if Python project and missing
             if self._is_python_project(repo) and self._should_add_requirements(repo):
                 self._add_requirements_txt(repo)
-                result['enhancements'].append("Added requirements.txt")
-            
+                result["enhancements"].append("Added requirements.txt")
+
             # Add setup.py if Python project and missing
             if self._is_python_project(repo) and self._should_add_setup(repo):
                 self._add_setup_py(repo)
-                result['enhancements'].append("Added setup.py")
-            
+                result["enhancements"].append("Added setup.py")
+
             # Create basic directory structure if missing
             structure_added = self._create_directory_structure(repo)
             if structure_added:
-                result['enhancements'].extend(structure_added)
-            
-            result['success'] = True
+                result["enhancements"].extend(structure_added)
+
+            result["success"] = True
             self.logger.info(f"Successfully enhanced {repo_name}")
-            
+
         except GithubException as e:
             error_msg = f"GitHub API error for {repo_name}: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
+            result["errors"].append(error_msg)
         except Exception as e:
             error_msg = f"Unexpected error for {repo_name}: {e}"
             self.logger.error(error_msg)
-            result['errors'].append(error_msg)
-        
+            result["errors"].append(error_msg)
+
         return result
-    
+
     def _should_add_gitignore(self, repo) -> bool:
         """Check if .gitignore should be added."""
         try:
@@ -111,7 +110,7 @@ class RepositoryEnhancer:
             if e.status == 404:
                 return True
             return False
-    
+
     def _add_gitignore(self, repo) -> None:
         """Add a comprehensive .gitignore file."""
         gitignore_content = """# Byte-compiled / optimized / DLL files
@@ -249,14 +248,14 @@ dmypy.json
 .DS_Store
 Thumbs.db
 """
-        
+
         repo.create_file(
             path=".gitignore",
             message="Add comprehensive .gitignore",
             content=gitignore_content,
-            branch=repo.default_branch
+            branch=repo.default_branch,
         )
-    
+
     def _should_add_cicd(self, repo) -> bool:
         """Check if CI/CD workflow should be added."""
         try:
@@ -266,7 +265,7 @@ Thumbs.db
             if e.status == 404:
                 return True
             return False
-    
+
     def _add_cicd_workflow(self, repo) -> None:
         """Add GitHub Actions CI/CD workflow."""
         workflow_content = """name: CI/CD Pipeline
@@ -317,14 +316,14 @@ jobs:
         pip install black
         black --check .
 """
-        
+
         # Create .github/workflows directory structure
         try:
             repo.create_file(
                 path=".github/workflows/ci.yml",
                 message="Add GitHub Actions CI/CD pipeline",
                 content=workflow_content,
-                branch=repo.default_branch
+                branch=repo.default_branch,
             )
         except GithubException as e:
             # Directory might not exist, try creating it
@@ -333,29 +332,29 @@ jobs:
                     path=".github/workflows/.gitkeep",
                     message="Create workflows directory",
                     content="",
-                    branch=repo.default_branch
+                    branch=repo.default_branch,
                 )
                 repo.create_file(
                     path=".github/workflows/ci.yml",
                     message="Add GitHub Actions CI/CD pipeline",
                     content=workflow_content,
-                    branch=repo.default_branch
+                    branch=repo.default_branch,
                 )
-    
+
     def _is_python_project(self, repo) -> bool:
         """Check if repository is a Python project."""
         try:
             # Check for Python files
             contents = repo.get_contents("")
             for content in contents:
-                if content.name.endswith('.py'):
+                if content.name.endswith(".py"):
                     return True
-                if content.name in ['setup.py', 'requirements.txt', 'pyproject.toml']:
+                if content.name in ["setup.py", "requirements.txt", "pyproject.toml"]:
                     return True
             return False
         except GithubException:
             return False
-    
+
     def _should_add_requirements(self, repo) -> bool:
         """Check if requirements.txt should be added."""
         try:
@@ -365,7 +364,7 @@ jobs:
             if e.status == 404:
                 return True
             return False
-    
+
     def _add_requirements_txt(self, repo) -> None:
         """Add basic requirements.txt for Python projects."""
         requirements_content = """# Core dependencies
@@ -383,14 +382,14 @@ mypy>=0.991
 # Optional dependencies
 python-dotenv>=0.19.0
 """
-        
+
         repo.create_file(
             path="requirements.txt",
             message="Add requirements.txt with common dependencies",
             content=requirements_content,
-            branch=repo.default_branch
+            branch=repo.default_branch,
         )
-    
+
     def _should_add_setup(self, repo) -> bool:
         """Check if setup.py should be added."""
         try:
@@ -401,10 +400,10 @@ python-dotenv>=0.19.0
             if e.status == 404:
                 return True
             return False
-    
+
     def _add_setup_py(self, repo) -> None:
         """Add setup.py for Python projects."""
-        setup_content = '''from setuptools import setup, find_packages
+        setup_content = """from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -441,26 +440,21 @@ setup(
         ],
     }},
 )
-'''.format(repo.name, self.user.login, repo.name, repo.name.replace('-', '_'))
-        
+""".format(repo.name, self.user.login, repo.name, repo.name.replace("-", "_"))
+
         repo.create_file(
             path="setup.py",
             message="Add setup.py for package distribution",
             content=setup_content,
-            branch=repo.default_branch
+            branch=repo.default_branch,
         )
-    
+
     def _create_directory_structure(self, repo) -> List[str]:
         """Create basic directory structure."""
         enhancements = []
-        
-        directories = [
-            "src",
-            "tests",
-            "docs",
-            "examples"
-        ]
-        
+
+        directories = ["src", "tests", "docs", "examples"]
+
         for directory in directories:
             try:
                 repo.get_contents(directory)
@@ -470,31 +464,35 @@ setup(
                         path=f"{directory}/.gitkeep",
                         message=f"Create {directory} directory",
                         content="",
-                        branch=repo.default_branch
+                        branch=repo.default_branch,
                     )
                     enhancements.append(f"Created {directory}/ directory")
-        
+
         return enhancements
-    
+
     def batch_enhance_repositories(self, repo_names: List[str]) -> Dict[str, Any]:
         """Enhance multiple repositories."""
         results = {
-            'total': len(repo_names),
-            'successful': 0,
-            'failed': 0,
-            'details': []
+            "total": len(repo_names),
+            "successful": 0,
+            "failed": 0,
+            "details": [],
         }
-        
-        self.logger.info(f"Starting batch enhancement for {len(repo_names)} repositories")
-        
+
+        self.logger.info(
+            f"Starting batch enhancement for {len(repo_names)} repositories"
+        )
+
         for repo_name in repo_names:
             result = self.enhance_repository(repo_name)
-            results['details'].append(result)
-            
-            if result['success']:
-                results['successful'] += 1
+            results["details"].append(result)
+
+            if result["success"]:
+                results["successful"] += 1
             else:
-                results['failed'] += 1
-        
-        self.logger.info(f"Batch enhancement completed: {results['successful']} successful, {results['failed']} failed")
+                results["failed"] += 1
+
+        self.logger.info(
+            f"Batch enhancement completed: {results['successful']} successful, {results['failed']} failed"
+        )
         return results
