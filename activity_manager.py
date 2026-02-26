@@ -134,7 +134,8 @@ class ActivityManager:
         """Generate a meaningful commit based on improvement type."""
         commit_templates = {
             "documentation": {
-                "files": {"docs/usage.md": """# Usage Guide
+                "files": {
+                    "docs/usage.md": """# Usage Guide
 
 ## Installation
 
@@ -173,7 +174,8 @@ Description of advanced feature 2.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-"""},
+"""
+                },
                 "message": "docs: Add comprehensive usage guide and troubleshooting",
                 "description": "Added detailed usage documentation with examples",
             },
@@ -216,7 +218,8 @@ if __name__ == '__main__':
                 "description": "Added comprehensive integration test suite",
             },
             "dependencies": {
-                "files": {"requirements.txt": """# Core dependencies
+                "files": {
+                    "requirements.txt": """# Core dependencies
 requests>=2.31.0
 click>=8.1.0
 pydantic>=2.0.0
@@ -232,7 +235,8 @@ mypy>=1.5.0
 # Optional dependencies
 aiohttp>=3.8.0
 jinja2>=3.1.0
-"""},
+"""
+                },
                 "message": "deps: Update dependencies to latest stable versions",
                 "description": "Updated all dependencies for security and performance",
             },

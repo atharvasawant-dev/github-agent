@@ -440,7 +440,9 @@ setup(
         ],
     }},
 )
-""".format(repo.name, self.user.login, repo.name, repo.name.replace("-", "_"))
+""".format(
+            repo.name, self.user.login, repo.name, repo.name.replace("-", "_")
+        )
 
         repo.create_file(
             path="setup.py",
