@@ -1,0 +1,28 @@
+# GitHub Automation Agent configuration
+# GITHUB_TOKEN belongs in .env locally or repository secrets in GitHub Actions.
+
+dry_run: true
+max_commits_per_day: 3
+activity_intensity: moderate # conservative, moderate, or active
+
+profile_building_enabled: true
+professional_headline: "Software developer focused on practical, production-minded engineering."
+profile_location: ""
+contact_email: ""
+linkedin_url: ""
+portfolio_url: ""
+featured_project_count: 6
+
+prefer_existing_repos: true
+allow_create_new_repos: false
+max_new_repositories: 3
+
+include_private_repos: true
+repository_allowlist: []
+repository_blocklist: []
+
+# Set above 0 to skip repositories that were updated too recently.
+require_recent_activity_days: 0
+
+schedule_interval_hours: 24
+log_level: INFO

@@ -1,122 +1,172 @@
-# GitHub Automation Agent
+# Professional GitHub Profile Builder
 
-A production-grade Python application for GitHub repository management and automation.
+A production-minded autonomous agent that maintains a serious GitHub profile and steadily improves existing repositories with small, meaningful commits. It is designed to run unattended every day through GitHub Actions after one-time setup.
 
-## Features
+The agent behaves like a careful junior-to-mid level developer: it prefers improving real repositories, keeps documentation and structure current, limits daily commit volume, avoids deletion, and logs every action clearly.
 
-- 🔐 Secure authentication using GitHub tokens
-- 📋 List all user repositories with detailed information
-- 🔍 Search and get details for specific repositories
-- 📊 Repository statistics (stars, forks, language, etc.)
-- 🌍 Visual indicators for private/public repositories
-- ⚡ Command-line interface with multiple options
+## Core Capabilities
 
-## Installation
+- Creates and maintains the special profile repository named `username/username`.
+- Generates a professional profile README with introduction, skills, featured projects, current focus, GitHub stats, and contact links.
+- Scans owned repositories and detects missing README files, `.gitignore`, CI, tests, dependency manifests, structure, and progress notes.
+- Improves repositories with high-quality READMEs, safe structure files, CI workflows, dependency manifests, and lightweight tests.
+- Produces natural daily activity with conventional commit messages.
+- Supports full dry-run mode before making any account changes.
+- Handles GitHub API retries and rate-limit shape changes defensively.
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd github-agent
-```
+## Project Layout
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up your GitHub token:
-   - Create a `.env` file in the project root
-   - Add your GitHub personal access token:
-   ```
-   GITHUB_TOKEN=your_github_token_here
-   ```
-
-## Usage
-
-### Basic Commands
-
-```bash
-# List all repositories
-python main.py
-
-# Show only repository count
-python main.py --count
-
-# Get details for a specific repository
-python main.py --repo repository-name
-
-# Get verbose details for a specific repository
-python main.py --repo repository-name --verbose
-```
-
-### Examples
-
-```bash
-# List all repositories with details
-python main.py
-
-# Get details for the "my-awesome-repo" repository
-python main.py --repo my-awesome-repo
-
-# Show total number of repositories
-python main.py --count
-
-# Get detailed information including clone URL and size
-python main.py --repo my-awesome-repo --verbose
-```
-
-## Project Structure
-
-```
+```text
 github-agent/
-├── main.py              # Entry point and CLI interface
-├── config.py            # Configuration management
-├── github_service.py    # GitHub API service class
-├── requirements.txt     # Python dependencies
-├── .env                 # Environment variables (not tracked)
-└── README.md           # This file
+|-- main.py
+|-- config.py
+|-- config.yaml
+|-- .env.example
+|-- requirements.txt
+|-- README.md
+|-- agent/
+|   |-- __init__.py
+|   |-- github_client.py
+|   |-- repo_scanner.py
+|   |-- profile_engine.py
+|   |-- readme_improver.py
+|   |-- repo_polisher.py
+|   |-- activity_engine.py
+|   |-- project_generator.py
+|   `-- scheduler.py
+|-- templates/
+`-- .github/workflows/daily-agent.yml
 ```
 
 ## Configuration
 
-The application uses environment variables for configuration:
+Edit `config.yaml`:
 
-- `GITHUB_TOKEN`: Your GitHub personal access token (required)
+```yaml
+dry_run: true
+max_commits_per_day: 3
+activity_intensity: moderate
 
-### Creating a GitHub Token
+profile_building_enabled: true
+professional_headline: "Software developer focused on practical, production-minded engineering."
+profile_location: ""
+contact_email: ""
+linkedin_url: ""
+portfolio_url: ""
+featured_project_count: 6
 
-1. Go to GitHub Settings → Developer settings → Personal access tokens
-2. Click "Generate new token"
-3. Select the required scopes (at minimum: `public_repo`, `repo` for private repos)
-4. Copy the token and add it to your `.env` file
+prefer_existing_repos: true
+allow_create_new_repos: false
+max_new_repositories: 3
+include_private_repos: true
+repository_allowlist: []
+repository_blocklist: []
+```
 
-## Dependencies
+Recommended production settings:
 
-- **PyGithub**: GitHub API library for Python
-- **python-dotenv**: Environment variable management
+- Keep `profile_building_enabled: true`.
+- Keep `max_commits_per_day` between `2` and `3`.
+- Use `activity_intensity: moderate` for natural activity.
+- Keep `allow_create_new_repos: false` unless you explicitly want the agent to create starter projects.
+- Use `repository_blocklist` for repositories the agent should never touch.
 
-## Security Notes
+## Local Setup
 
-- Never commit your `.env` file to version control
-- Keep your GitHub token secure and rotate it regularly
-- Use the minimum required scopes for your token
+1. Create a classic GitHub Personal Access Token with `repo` and `workflow` scopes.
+2. Copy `.env.example` to `.env`.
+3. Add your token:
 
-## Error Handling
+```bash
+GITHUB_TOKEN=ghp_your_token_here
+```
 
-The application includes comprehensive error handling for:
-- Missing or invalid GitHub tokens
-- Network connectivity issues
-- Repository not found errors
-- API rate limiting
+4. Install dependencies:
 
-## Contributing
+```bash
+pip install -r requirements.txt
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+5. Run a safe planning pass:
 
-## License
+```bash
+python main.py --dry-run
+```
 
-This project is licensed under the MIT License.
+6. When the plan looks correct, run one live cycle:
+
+```bash
+python main.py --run-once
+```
+
+## CLI
+
+```bash
+python main.py --dry-run
+python main.py --run-once
+python main.py --schedule
+python main.py --status
+```
+
+Running `python main.py` defaults to dry-run behavior.
+
+## Daily Automation With GitHub Actions
+
+The workflow at `.github/workflows/daily-agent.yml` runs once per day and waits a random amount of time within the first hour. It then runs:
+
+```bash
+python main.py --run-once
+```
+
+The workflow uses the secret `GH_AGENT_TOKEN`.
+
+## First-Time Production Setup
+
+1. Commit and push this project to GitHub:
+
+```bash
+git add .
+git commit -m "feat: build autonomous GitHub profile agent"
+git push origin main
+```
+
+2. Open the repository on GitHub.
+3. Go to `Settings` -> `Secrets and variables` -> `Actions`.
+4. Click `New repository secret`.
+5. Name the secret:
+
+```text
+GH_AGENT_TOKEN
+```
+
+6. Paste a classic Personal Access Token with `repo` and `workflow` scopes.
+7. Go to the `Actions` tab.
+8. Open the `Daily GitHub Agent` workflow.
+9. If GitHub prompts you to enable workflows, enable them.
+10. Click `Run workflow` once to verify the setup.
+11. Check the workflow logs. You should see authentication, repository scanning, planned changes, and completed commits.
+
+After that, the workflow will run automatically every day from the schedule in `.github/workflows/daily-agent.yml`.
+
+## Safety Model
+
+- Dry-run mode shows planned actions without writing.
+- Live daily runs are capped by `max_commits_per_day`.
+- Archived repositories and forks are skipped.
+- The agent never deletes files.
+- Repository creation is off by default.
+- Rate-limit checks are defensive across PyGithub versions.
+- All write operations flow through one GitHub client wrapper.
+
+## What the Agent Commits
+
+Typical commit messages:
+
+- `docs: refresh professional GitHub profile`
+- `docs: improve project README`
+- `chore: add project gitignore`
+- `ci: add basic validation workflow`
+- `test: add repository health checks`
+- `chore: add maintainable project structure`
+
+The goal is consistent, believable maintenance rather than noisy activity.
