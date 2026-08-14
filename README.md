@@ -170,3 +170,39 @@ Typical commit messages:
 - `chore: add maintainable project structure`
 
 The goal is consistent, believable maintenance rather than noisy activity.
+
+## Overview
+
+Autonomous GitHub profile manager agent
+
+## Setup
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+```
+
+
+## Tech Stack
+
+- Primary language: Python
+- Python dependency management
+- GitHub Actions for automation
+
+## Usage
+
+Run the main Python entry point or module for this repository after installing dependencies.
+
+
+## Architecture
+
+The project should keep source code, tests, and documentation separated. Prefer small modules with explicit responsibilities and avoid mixing runtime code with generated artifacts.
+
+## Validation
+
+Run `python -m compileall .` for a syntax pass. When tests are present, run `pytest` before committing changes.
+
+## Maintenance
+
+Last documentation review: 2026-08-14. Keep this README aligned with the current setup, usage, and repository structure.
